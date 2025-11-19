@@ -14,6 +14,8 @@ interface UseVaultReturn {
   deleteFile: (path: string) => Promise<void>;
   createFolder: (path: string) => Promise<void>;
   getTodayNote: () => Promise<{ path: string; content: string; isNew: boolean }>;
+  getDailyNote: (date: string) => Promise<{ path: string; content: string; isNew: boolean }>;
+  getDailyNoteDates: () => Promise<string[]>;
 }
 
 export const useVault = (): UseVaultReturn => {
@@ -129,6 +131,28 @@ export const useVault = (): UseVaultReturn => {
     };
   }, []);
 
+  // Get daily note for specific date
+  const getDailyNote = useCallback(async (date: string) => {
+    const result = await window.electronAPI.vault.getDailyNote(date);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get daily note');
+    }
+    return {
+      path: result.path,
+      content: result.content,
+      isNew: result.isNew
+    };
+  }, []);
+
+  // Get all daily note dates
+  const getDailyNoteDates = useCallback(async (): Promise<string[]> => {
+    const result = await window.electronAPI.vault.getDailyNoteDates();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get daily note dates');
+    }
+    return result.dates;
+  }, []);
+
   // Load vault path on mount
   useEffect(() => {
     const loadVaultPath = async () => {
@@ -158,6 +182,8 @@ export const useVault = (): UseVaultReturn => {
     createFile,
     deleteFile,
     createFolder,
-    getTodayNote
+    getTodayNote,
+    getDailyNote,
+    getDailyNoteDates
   };
 };

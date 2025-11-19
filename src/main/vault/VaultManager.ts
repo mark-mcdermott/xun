@@ -246,6 +246,57 @@ export class VaultManager {
   }
 
   /**
+   * Get daily note for a specific date (YYYY-MM-DD)
+   */
+  async getDailyNote(date: string): Promise<{ path: string; content: string; isNew: boolean }> {
+    const notePath = join(DEFAULT_VAULT_STRUCTURE.dailyNotes, `${date}.md`);
+
+    try {
+      const content = await this.readFile(notePath);
+      return { path: notePath, content, isNew: false };
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        // Create new daily note
+        const content = `# ${date}\n\n`;
+        await this.createFile(notePath, content);
+        return { path: notePath, content, isNew: true };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Get all existing daily note dates
+   */
+  async getDailyNoteDates(): Promise<string[]> {
+    if (!this.vaultPath) {
+      throw new Error('Vault not initialized');
+    }
+
+    const dailyNotesDir = join(this.vaultPath, DEFAULT_VAULT_STRUCTURE.dailyNotes);
+    const dates: string[] = [];
+
+    try {
+      const files = await fs.readdir(dailyNotesDir);
+
+      for (const file of files) {
+        // Match YYYY-MM-DD.md pattern
+        const match = file.match(/^(\d{4}-\d{2}-\d{2})\.md$/);
+        if (match) {
+          dates.push(match[1]);
+        }
+      }
+
+      return dates.sort();
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        return [];
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Load vault configuration
    */
   private async loadConfig(): Promise<VaultConfig | null> {

@@ -5,12 +5,13 @@ import { FileTree } from './components/FileTree';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { TagBrowser } from './components/TagBrowser';
 import { TagView } from './components/TagView';
+import { DailyNotesNav } from './components/DailyNotesNav';
 
-type SidebarTab = 'files' | 'tags';
+type SidebarTab = 'files' | 'tags' | 'daily';
 type ViewMode = 'editor' | 'tag-view';
 
 const App: React.FC = () => {
-  const { vaultPath, fileTree, loading, error, readFile, writeFile, getTodayNote } = useVault();
+  const { vaultPath, fileTree, loading, error, readFile, writeFile, getTodayNote, getDailyNote, getDailyNoteDates } = useVault();
   const { tags, loading: tagsLoading, getTagContent } = useTags();
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files');
@@ -18,6 +19,7 @@ const App: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [dailyNoteDates, setDailyNoteDates] = useState<string[]>([]);
 
   // Load today's note on mount
   useEffect(() => {
@@ -36,6 +38,22 @@ const App: React.FC = () => {
     }
   }, [vaultPath, getTodayNote]);
 
+  // Load daily note dates on mount
+  useEffect(() => {
+    const loadDates = async () => {
+      try {
+        const dates = await getDailyNoteDates();
+        setDailyNoteDates(dates);
+      } catch (err) {
+        console.error('Failed to load daily note dates:', err);
+      }
+    };
+
+    if (vaultPath) {
+      loadDates();
+    }
+  }, [vaultPath, getDailyNoteDates]);
+
   const handleFileClick = async (path: string) => {
     try {
       const content = await readFile(path);
@@ -53,6 +71,23 @@ const App: React.FC = () => {
     setSelectedTag(tag);
     setViewMode('tag-view');
     setSelectedFile(null);
+  };
+
+  const handleDateSelect = async (date: string) => {
+    try {
+      const { path, content } = await getDailyNote(date);
+      setSelectedFile(path);
+      setFileContent(content);
+      setViewMode('editor');
+      setSelectedTag(null);
+
+      // Refresh daily note dates in case a new one was created
+      const dates = await getDailyNoteDates();
+      setDailyNoteDates(dates);
+    } catch (err: any) {
+      console.error('Failed to load daily note:', err);
+      alert(`Failed to load daily note: ${err.message}`);
+    }
   };
 
   const handleSave = async (content: string) => {
@@ -104,8 +139,18 @@ const App: React.FC = () => {
           {/* Sidebar tabs */}
           <div className="flex border-b border-gray-200">
             <button
+              onClick={() => setSidebarTab('daily')}
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                sidebarTab === 'daily'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Daily
+            </button>
+            <button
               onClick={() => setSidebarTab('files')}
-              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                 sidebarTab === 'files'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-800'
@@ -115,7 +160,7 @@ const App: React.FC = () => {
             </button>
             <button
               onClick={() => setSidebarTab('tags')}
-              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                 sidebarTab === 'tags'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-800'
@@ -127,7 +172,13 @@ const App: React.FC = () => {
 
           {/* Sidebar content */}
           <div className="flex-1 overflow-hidden">
-            {sidebarTab === 'files' ? (
+            {sidebarTab === 'daily' ? (
+              <DailyNotesNav
+                onDateSelect={handleDateSelect}
+                currentDate={selectedFile?.includes('daily-notes/') ? selectedFile.split('/').pop()?.replace('.md', '') : null}
+                existingDates={dailyNoteDates}
+              />
+            ) : sidebarTab === 'files' ? (
               <FileTree tree={fileTree} onFileClick={handleFileClick} />
             ) : (
               <TagBrowser

@@ -31,6 +31,10 @@ export interface ElectronAPI {
     getTodayNote: () => Promise<
       VaultResponse<{ path: string; content: string; isNew: boolean }>
     >;
+    getDailyNote: (date: string) => Promise<
+      VaultResponse<{ path: string; content: string; isNew: boolean }>
+    >;
+    getDailyNoteDates: () => Promise<VaultResponse<{ dates: string[] }>>;
   };
 
   // Tag operations
@@ -68,7 +72,9 @@ const api: ElectronAPI = {
       ipcRenderer.invoke('vault:create-file', path, content),
     deleteFile: (path: string) => ipcRenderer.invoke('vault:delete-file', path),
     createFolder: (path: string) => ipcRenderer.invoke('vault:create-folder', path),
-    getTodayNote: () => ipcRenderer.invoke('vault:get-today-note')
+    getTodayNote: () => ipcRenderer.invoke('vault:get-today-note'),
+    getDailyNote: (date: string) => ipcRenderer.invoke('vault:get-daily-note', date),
+    getDailyNoteDates: () => ipcRenderer.invoke('vault:get-daily-note-dates')
   },
 
   tags: {

@@ -90,4 +90,24 @@ export function registerVaultHandlers(): void {
       return { success: false, error: error.message };
     }
   });
+
+  // Get daily note for specific date
+  ipcMain.handle('vault:get-daily-note', async (_event, date: string) => {
+    try {
+      const note = await vaultManager.getDailyNote(date);
+      return { success: true, ...note };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get all daily note dates
+  ipcMain.handle('vault:get-daily-note-dates', async () => {
+    try {
+      const dates = await vaultManager.getDailyNoteDates();
+      return { success: true, dates };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
 }
