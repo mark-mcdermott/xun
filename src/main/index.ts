@@ -1,16 +1,12 @@
 import { app, BrowserWindow } from 'electron';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { registerVaultHandlers } from './ipc/vaultHandlers';
+import { vaultManager } from './vault/VaultManager';
 
 // ES modules equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Handle creating/removing shortcuts on Windows when installing/uninstalling
-// Note: electron-squirrel-startup is Windows-specific, skip on macOS
-// if (require('electron-squirrel-startup')) {
-//   app.quit();
-// }
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -43,9 +39,20 @@ const createWindow = (): void => {
   });
 };
 
+// Register IPC handlers
+registerVaultHandlers();
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Initialize vault before creating window
+  try {
+    await vaultManager.initialize();
+    console.log('Vault initialized at:', vaultManager.getVaultPath());
+  } catch (error) {
+    console.error('Failed to initialize vault:', error);
+  }
+
   createWindow();
 
   app.on('activate', () => {
@@ -63,6 +70,3 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-
-// Handle IPC messages
-// TODO: Import and register IPC handlers

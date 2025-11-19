@@ -1,24 +1,45 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Import types from main process
+export interface FileNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: FileNode[];
+  extension?: string;
+  modifiedAt?: number;
+}
+
+interface VaultResponse<T = any> {
+  success: boolean;
+  error?: string;
+  [key: string]: any;
+}
+
 // Define the API that will be exposed to the renderer process
 export interface ElectronAPI {
   // Vault operations
   vault: {
-    getFiles: () => Promise<string[]>;
-    readFile: (path: string) => Promise<string>;
-    writeFile: (path: string, content: string) => Promise<void>;
-    createFile: (path: string, content: string) => Promise<void>;
-    deleteFile: (path: string) => Promise<void>;
-    createFolder: (path: string) => Promise<void>;
+    initialize: (vaultPath?: string) => Promise<VaultResponse<{ path: string }>>;
+    getPath: () => Promise<VaultResponse<{ path: string | null }>>;
+    getFiles: () => Promise<VaultResponse<{ tree: FileNode }>>;
+    readFile: (path: string) => Promise<VaultResponse<{ content: string }>>;
+    writeFile: (path: string, content: string) => Promise<VaultResponse>;
+    createFile: (path: string, content?: string) => Promise<VaultResponse>;
+    deleteFile: (path: string) => Promise<VaultResponse>;
+    createFolder: (path: string) => Promise<VaultResponse>;
+    getTodayNote: () => Promise<
+      VaultResponse<{ path: string; content: string; isNew: boolean }>
+    >;
   };
 
-  // Tag operations
+  // Tag operations (to be implemented)
   tags: {
     extractTags: (content: string) => Promise<string[]>;
     getTaggedContent: (tag: string) => Promise<Array<{ date: string; content: string }>>;
   };
 
-  // Publishing operations
+  // Publishing operations (to be implemented)
   publish: {
     toBlog: (blogId: string, tag: string) => Promise<{ success: boolean; jobId: string }>;
     getStatus: (jobId: string) => Promise<{ status: string; progress: number }>;
@@ -29,14 +50,17 @@ export interface ElectronAPI {
 // the ipcRenderer without exposing the entire object
 const api: ElectronAPI = {
   vault: {
+    initialize: (vaultPath?: string) => ipcRenderer.invoke('vault:initialize', vaultPath),
+    getPath: () => ipcRenderer.invoke('vault:get-path'),
     getFiles: () => ipcRenderer.invoke('vault:get-files'),
     readFile: (path: string) => ipcRenderer.invoke('vault:read-file', path),
     writeFile: (path: string, content: string) =>
       ipcRenderer.invoke('vault:write-file', path, content),
-    createFile: (path: string, content: string) =>
+    createFile: (path: string, content: string = '') =>
       ipcRenderer.invoke('vault:create-file', path, content),
     deleteFile: (path: string) => ipcRenderer.invoke('vault:delete-file', path),
-    createFolder: (path: string) => ipcRenderer.invoke('vault:create-folder', path)
+    createFolder: (path: string) => ipcRenderer.invoke('vault:create-folder', path),
+    getTodayNote: () => ipcRenderer.invoke('vault:get-today-note')
   },
 
   tags: {
