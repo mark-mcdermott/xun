@@ -232,7 +232,7 @@ const App: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-4">
+      <div className="h-12 bg-white border-b border-gray-200 flex items-center justify-between px-4" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
         <div className="flex items-center">
           <h1 className="text-lg font-semibold text-gray-800">Olite</h1>
           {vaultPath && <span className="ml-4 text-xs text-gray-500">{vaultPath}</span>}
@@ -241,6 +241,7 @@ const App: React.FC = () => {
           onClick={() => setSettingsOpen(true)}
           className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
           title="Settings (Cmd+,)"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
           ⚙️ Settings
         </button>
