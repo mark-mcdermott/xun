@@ -8,9 +8,9 @@ interface BlogTarget {
     branch: string;
     token: string;
   };
-  vercel: {
-    projectId: string;
-    teamId?: string;
+  cloudflare?: {
+    accountId: string;
+    projectName: string;
     token: string;
   };
   content: {
@@ -56,9 +56,9 @@ export const PublishSettings: React.FC<PublishSettingsProps> = ({ onClose }) => 
         branch: 'main',
         token: ''
       },
-      vercel: {
-        projectId: '',
-        teamId: '',
+      cloudflare: {
+        accountId: '',
+        projectName: '',
         token: ''
       },
       content: {
@@ -91,17 +91,25 @@ export const PublishSettings: React.FC<PublishSettingsProps> = ({ onClose }) => 
     if (!editingBlog.github.token.trim()) {
       errors.push('GitHub token is required');
     }
-    if (!editingBlog.vercel.projectId.trim()) {
-      errors.push('Vercel project ID is required');
-    }
-    if (!editingBlog.vercel.token.trim()) {
-      errors.push('Vercel token is required');
-    }
     if (!editingBlog.content.path.trim()) {
       errors.push('Content path is required');
     }
     if (!editingBlog.content.filename?.trim()) {
       errors.push('Filename template is required');
+    }
+
+    // Cloudflare fields are optional, but if any are filled, all must be filled
+    const cf = editingBlog.cloudflare;
+    if (cf && (cf.accountId || cf.projectName || cf.token)) {
+      if (!cf.accountId.trim()) {
+        errors.push('Cloudflare account ID is required when using Cloudflare');
+      }
+      if (!cf.projectName.trim()) {
+        errors.push('Cloudflare project name is required when using Cloudflare');
+      }
+      if (!cf.token.trim()) {
+        errors.push('Cloudflare API token is required when using Cloudflare');
+      }
     }
 
     if (errors.length > 0) {
@@ -228,57 +236,81 @@ export const PublishSettings: React.FC<PublishSettingsProps> = ({ onClose }) => 
               </div>
             </div>
 
-            {/* Vercel Config */}
+            {/* Cloudflare Pages Config (Optional) */}
             <div className="border-t border-gray-200 pt-4">
-              <h3 className="text-lg font-medium mb-3 text-gray-900">Vercel</h3>
+              <h3 className="text-lg font-medium mb-1 text-gray-900">Cloudflare Pages</h3>
+              <p className="text-sm text-gray-500 mb-3">
+                Optional: Add these to track deployment status
+              </p>
 
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project ID <span className="text-red-600">*</span>
+                    Account ID
                   </label>
                   <input
                     type="text"
-                    value={editingBlog.vercel.projectId}
+                    value={editingBlog.cloudflare?.accountId || ''}
                     onChange={e => setEditingBlog({
                       ...editingBlog,
-                      vercel: { ...editingBlog.vercel, projectId: e.target.value }
+                      cloudflare: {
+                        accountId: e.target.value,
+                        projectName: editingBlog.cloudflare?.projectName || '',
+                        token: editingBlog.cloudflare?.token || ''
+                      }
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                    placeholder="prj_..."
+                    placeholder="Your Cloudflare account ID"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Found in Cloudflare dashboard URL or Workers & Pages → Overview
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Team ID (optional)
+                    Project Name
                   </label>
                   <input
                     type="text"
-                    value={editingBlog.vercel.teamId || ''}
+                    value={editingBlog.cloudflare?.projectName || ''}
                     onChange={e => setEditingBlog({
                       ...editingBlog,
-                      vercel: { ...editingBlog.vercel, teamId: e.target.value }
+                      cloudflare: {
+                        accountId: editingBlog.cloudflare?.accountId || '',
+                        projectName: e.target.value,
+                        token: editingBlog.cloudflare?.token || ''
+                      }
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                    placeholder="team_..."
+                    placeholder="my-blog"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    The name of your Pages project (not the domain)
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    API Token <span className="text-red-600">*</span>
+                    API Token
                   </label>
                   <input
                     type="password"
-                    value={editingBlog.vercel.token}
+                    value={editingBlog.cloudflare?.token || ''}
                     onChange={e => setEditingBlog({
                       ...editingBlog,
-                      vercel: { ...editingBlog.vercel, token: e.target.value }
+                      cloudflare: {
+                        accountId: editingBlog.cloudflare?.accountId || '',
+                        projectName: editingBlog.cloudflare?.projectName || '',
+                        token: e.target.value
+                      }
                     })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                    placeholder="..."
+                    placeholder="Your Cloudflare API token"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Create at: dash.cloudflare.com → My Profile → API Tokens
+                  </p>
                 </div>
               </div>
             </div>
@@ -369,7 +401,7 @@ export const PublishSettings: React.FC<PublishSettingsProps> = ({ onClose }) => 
               <div>
                 <h3 className="font-medium text-gray-900">{blog.name}</h3>
                 <p className="text-sm text-gray-600">
-                  {blog.github.repo} → Vercel
+                  {blog.github.repo}{blog.cloudflare?.projectName ? ` → ${blog.cloudflare.projectName}` : ''}
                 </p>
               </div>
               <div className="flex gap-2">

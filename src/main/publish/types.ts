@@ -10,10 +10,10 @@ export interface BlogTarget {
     branch: string; // e.g., "main"
     token: string; // GitHub Personal Access Token
   };
-  vercel: {
-    projectId: string;
-    teamId?: string;
-    token: string; // Vercel API token
+  cloudflare?: {
+    accountId: string; // Cloudflare account ID
+    projectName: string; // Pages project name
+    token: string; // Cloudflare API token
   };
   content: {
     path: string; // e.g., "src/content/posts/"
@@ -59,18 +59,32 @@ export interface GitHubCommitResponse {
   url: string;
 }
 
-export interface VercelDeployment {
+export type CloudflareDeploymentStage = 'queued' | 'initialize' | 'clone_repo' | 'build' | 'deploy' | 'success' | 'failure' | 'canceled';
+
+export interface CloudflareDeployment {
   id: string;
   url: string;
-  state: 'BUILDING' | 'ERROR' | 'INITIALIZING' | 'QUEUED' | 'READY' | 'CANCELED';
-  readyState: 'BUILDING' | 'ERROR' | 'INITIALIZING' | 'QUEUED' | 'READY' | 'CANCELED';
-  created: number;
-  creator: {
-    uid: string;
-    username: string;
+  environment: 'production' | 'preview';
+  latest_stage: {
+    name: CloudflareDeploymentStage;
+    status: 'idle' | 'active' | 'success' | 'failure' | 'canceled';
+    started_on: string | null;
+    ended_on: string | null;
   };
+  deployment_trigger: {
+    type: string;
+    metadata: {
+      branch: string;
+      commit_hash: string;
+      commit_message: string;
+    };
+  };
+  created_on: string;
 }
 
-export interface VercelDeploymentsResponse {
-  deployments: VercelDeployment[];
+export interface CloudflareDeploymentsResponse {
+  success: boolean;
+  errors: any[];
+  messages: any[];
+  result: CloudflareDeployment[];
 }

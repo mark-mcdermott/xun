@@ -4,13 +4,13 @@ The publishing feature is now fully integrated into Olite! Here's how to use it.
 
 ## Overview
 
-Olite can now publish your tagged content directly to your blog repositories on GitHub, with automatic deployment via Vercel. The system provides real-time progress tracking as your content is pushed and deployed.
+Olite can now publish your tagged content directly to your blog repositories on GitHub, with optional deployment tracking via Cloudflare Pages. The system provides real-time progress tracking as your content is pushed and deployed.
 
 ## What's Been Built
 
 ### Backend
 - **GitHub API Client** (`src/main/publish/GitHubClient.ts`) - Handles commits and pushes to your blog repos
-- **Vercel API Client** (`src/main/publish/VercelClient.ts`) - Monitors deployment status and progress
+- **Cloudflare API Client** (`src/main/publish/CloudflareClient.ts`) - Monitors Cloudflare Pages deployment status
 - **PublishManager** (`src/main/publish/PublishManager.ts`) - Orchestrates the complete workflow
 - **ConfigManager** (`src/main/publish/ConfigManager.ts`) - Stores blog configurations securely
 
@@ -31,16 +31,18 @@ Click "Add Blog" and fill in the following:
 #### Basic Info
 - **Blog Name**: A friendly name (e.g., "My Personal Blog")
 
-#### GitHub Configuration
+#### GitHub Configuration (Required)
 - **Repository**: Your repo in `username/repo-name` format
 - **Branch**: The branch to push to (usually `main` or `master`)
 - **Personal Access Token**: Your GitHub PAT with `repo` and `workflow` permissions
   - Create at: https://github.com/settings/tokens
 
-#### Vercel Configuration
-- **Project ID**: Found in Vercel Project Settings → General
-- **Team ID** (optional): If using a team account
-- **API Token**: Create at https://vercel.com/account/tokens
+#### Cloudflare Pages Configuration (Optional)
+Adding these fields enables deployment status tracking:
+- **Account ID**: Found in Cloudflare dashboard URL or Workers & Pages → Overview
+- **Project Name**: The name of your Pages project (not the domain)
+- **API Token**: Create at dash.cloudflare.com → My Profile → API Tokens
+  - Token needs "Cloudflare Pages: Read" permission
 
 #### Content Configuration
 - **Content Path**: Where to write files in your repo (e.g., `src/content/posts/`)
@@ -60,8 +62,8 @@ Click "Add Blog" and fill in the following:
 You'll see real-time updates as the publish progresses:
 - ✓ Preparing content
 - ✓ Pushing to GitHub
-- ✓ Waiting for Vercel build
-- ✓ Deployment complete
+- ✓ Waiting for deployment (if Cloudflare configured)
+- ✓ Publish complete
 
 ## Publishing Workflow
 
@@ -69,14 +71,14 @@ When you publish a tag, here's what happens:
 
 1. **Content Preparation** - All content tagged with the selected tag is aggregated from your daily notes
 2. **GitHub Push** - The content is committed and pushed to your blog repository
-3. **Vercel Detection** - Vercel automatically detects the push and starts building
-4. **Deployment Monitoring** - Olite polls Vercel's API to track build progress
+3. **Cloudflare Detection** - Cloudflare Pages automatically detects the push and starts building
+4. **Deployment Monitoring** - If configured, Olite polls Cloudflare's API to track build progress
 5. **Completion** - You're notified when the deployment is live
 
 ## Security Notes
 
 - All tokens are stored locally in `.olite/publish-config.json` in your vault
-- Tokens are never transmitted anywhere except to GitHub and Vercel APIs
+- Tokens are never transmitted anywhere except to GitHub and Cloudflare APIs
 - The configuration file is automatically added to `.gitignore`
 
 ## Troubleshooting
@@ -88,15 +90,19 @@ You need to add at least one blog configuration in Settings before publishing.
 - Verify your PAT has `repo` and `workflow` permissions
 - Check that the repository name is correct (`username/repo-name`)
 
-### Vercel Deployment Not Found
-- Ensure your GitHub repo is connected to Vercel
-- Verify the Project ID is correct
-- Check that auto-deployment is enabled in Vercel settings
+### Cloudflare Deployment Not Found
+- Ensure your GitHub repo is connected to Cloudflare Pages
+- Verify the Project Name matches exactly (case-sensitive)
+- Check that the Account ID is correct
+- Ensure your API token has "Cloudflare Pages: Read" permission
 
 ### Build Timeout
 - Default timeout is 10 minutes
-- Check Vercel dashboard for build errors
+- Check Cloudflare Pages dashboard for build errors
 - Ensure your blog's build command works locally
+
+### Publishing Without Cloudflare Tracking
+If you don't configure Cloudflare credentials, publishing will still work - it just won't monitor the deployment status. The content will be pushed to GitHub and Cloudflare will auto-deploy.
 
 ## Next Steps
 
@@ -116,4 +122,4 @@ Once you have a blog configured, you can:
 
 ---
 
-**Built with:** GitHub API, Vercel API, TypeScript, React
+**Built with:** GitHub API, Cloudflare Pages API, TypeScript, React

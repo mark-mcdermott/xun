@@ -1,11 +1,11 @@
 /**
- * Manages publishing workflows to blogs via GitHub and Vercel
+ * Manages publishing workflows to blogs via GitHub and Cloudflare Pages
  */
 
 import { randomUUID } from 'crypto';
 import type { TagManager } from '../vault/TagManager';
 import { GitHubClient } from './GitHubClient';
-import { VercelClient } from './VercelClient';
+import { CloudflareClient } from './CloudflareClient';
 import type { BlogTarget, PublishJob, PublishStatus, PublishStep } from './types';
 
 export class PublishManager {
@@ -23,6 +23,17 @@ export class PublishManager {
   async publish(blogTarget: BlogTarget, tag: string): Promise<string> {
     const jobId = randomUUID();
 
+    const hasCloudflare = Boolean(blogTarget.cloudflare?.token);
+    const steps: PublishStep[] = [
+      { name: 'Preparing content', status: 'in_progress' },
+      { name: 'Pushing to GitHub', status: 'pending' }
+    ];
+
+    if (hasCloudflare) {
+      steps.push({ name: 'Waiting for deployment', status: 'pending' });
+    }
+    steps.push({ name: 'Publish complete', status: 'pending' });
+
     const job: PublishJob = {
       id: jobId,
       blogId: blogTarget.id,
@@ -30,12 +41,7 @@ export class PublishManager {
       status: 'preparing',
       progress: 0,
       startedAt: Date.now(),
-      steps: [
-        { name: 'Preparing content', status: 'in_progress' },
-        { name: 'Pushing to GitHub', status: 'pending' },
-        { name: 'Triggering Vercel deployment', status: 'pending' },
-        { name: 'Publish complete', status: 'pending' }
-      ]
+      steps
     };
 
     this.jobs.set(jobId, job);
@@ -77,6 +83,7 @@ export class PublishManager {
   ): Promise<void> {
     try {
       console.log('PublishManager: Starting workflow for tag:', tag);
+      const hasCloudflare = Boolean(blogTarget.cloudflare?.token);
 
       // Step 1: Prepare content
       this.updateJobProgress(jobId, 'preparing', 10);
@@ -97,12 +104,30 @@ export class PublishManager {
 
       this.updateStepStatus(jobId, 1, 'completed', `Pushed commit ${commitSha.slice(0, 7)}`);
 
-      // Step 3: Note about Vercel deployment
-      this.updateJobProgress(jobId, 'building', 75);
-      this.updateStepStatus(jobId, 2, 'completed', 'Vercel will auto-deploy from GitHub');
+      // Step 3: Wait for Cloudflare deployment (if configured)
+      if (hasCloudflare && blogTarget.cloudflare) {
+        this.updateJobProgress(jobId, 'building', 40);
+        this.updateStepStatus(jobId, 2, 'in_progress');
 
-      // Step 4: Complete
-      this.updateStepStatus(jobId, 3, 'completed');
+        const cloudflareClient = new CloudflareClient(
+          blogTarget.cloudflare.token,
+          blogTarget.cloudflare.accountId
+        );
+
+        await this.waitForCloudflareDeployment(
+          jobId,
+          cloudflareClient,
+          blogTarget,
+          commitSha
+        );
+
+        this.updateStepStatus(jobId, 2, 'completed', 'Deployment successful');
+        this.updateStepStatus(jobId, 3, 'completed');
+      } else {
+        // No Cloudflare config - just mark as complete
+        this.updateStepStatus(jobId, 2, 'completed');
+      }
+
       this.updateJobStatus(jobId, 'completed', 100);
     } catch (error) {
       console.error('PublishManager: Workflow error:', error);
@@ -200,18 +225,17 @@ export class PublishManager {
     return result.sha;
   }
 
-  private async waitForVercelDeployment(
+  private async waitForCloudflareDeployment(
     jobId: string,
-    client: VercelClient,
+    client: CloudflareClient,
     blogTarget: BlogTarget,
     commitSha: string
   ): Promise<void> {
-    const { projectId, teamId } = blogTarget.vercel;
+    const projectName = blogTarget.cloudflare!.projectName;
 
-    console.log('PublishManager: Waiting for Vercel deployment');
-    console.log('  projectId:', projectId);
+    console.log('PublishManager: Waiting for Cloudflare Pages deployment');
+    console.log('  projectName:', projectName);
     console.log('  commitSha:', commitSha);
-    console.log('  teamId:', teamId);
 
     // Poll for deployment that matches the commit
     let deployment = null;
@@ -220,7 +244,7 @@ export class PublishManager {
 
     while (!deployment && attempts < maxAttempts) {
       console.log(`  Polling attempt ${attempts + 1}/${maxAttempts}`);
-      deployment = await client.findDeploymentByCommit(projectId, commitSha, teamId);
+      deployment = await client.findDeploymentByCommit(projectName, commitSha);
       if (!deployment) {
         console.log('  No matching deployment found yet, waiting...');
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -232,17 +256,17 @@ export class PublishManager {
 
     if (!deployment) {
       console.error('  Deployment not found after', maxAttempts, 'attempts');
-      throw new Error('Deployment not found on Vercel');
+      throw new Error('Deployment not found on Cloudflare Pages');
     }
 
     // Wait for deployment to complete
     console.log('  Waiting for deployment to complete...');
-    await client.waitForDeployment(deployment.id, teamId, {
+    await client.waitForDeployment(projectName, deployment.id, {
       pollInterval: 3000,
       timeout: 600000, // 10 minutes
       onProgress: dep => {
-        console.log('  Deployment status:', dep.readyState);
-        const progress = 50 + (client.getDeploymentProgress(dep) / 2); // 50-100%
+        console.log('  Deployment stage:', dep.latest_stage.name, dep.latest_stage.status);
+        const progress = 40 + (client.getDeploymentProgress(dep) * 0.6); // 40-100%
         this.updateJobProgress(jobId, 'building', progress);
       }
     });

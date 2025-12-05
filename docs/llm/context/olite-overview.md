@@ -46,12 +46,12 @@ Thinking about the weekend plans.
 - Menu options: "Publish to Blog A", "Publish to Blog B", etc.
 - Progress indicator (top-right corner) during publishing
 - Publishes to GitHub repositories
-- Monitors GitHub Actions for deployment status
+- Optional: Monitors Cloudflare Pages for deployment status
 - Multiple blog targets with different configurations:
   - Astro sites
   - Next.js sites
   - Other static site generators
-  - All hosted on Vercel with Neon Postgres (some)
+  - Hosted on Cloudflare Pages
 
 ### 5. Content Separation for Job Changes
 - Ability to delete all content for a specific tag
@@ -83,7 +83,7 @@ Thinking about the weekend plans.
 
 ### Publishing System
 - GitHub API integration for commits and pushes
-- GitHub Actions status polling
+- Cloudflare Pages API integration for deployment monitoring (optional)
 - Background task management with UI progress indicators
 - Per-blog configuration (repo, branch, path, deployment settings)
 
