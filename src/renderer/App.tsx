@@ -10,8 +10,8 @@ import {
   FilePlus,
   FolderPlus,
   X,
-  ChevronLeft,
-  ChevronRight,
+  ArrowLeft,
+  ArrowRight,
   MoreHorizontal,
   Pencil,
   Link,
@@ -33,6 +33,7 @@ import { PublishSettings } from './components/PublishSettings';
 
 type SidebarTab = 'files' | 'tags' | 'daily';
 type ViewMode = 'editor' | 'tag-view';
+type EditorViewMode = 'edit' | 'split' | 'preview';
 
 const App: React.FC = () => {
   const { vaultPath, fileTree, loading, error, readFile, writeFile, getTodayNote, getDailyNote, getDailyNoteDates, refreshFileTree } = useVault();
@@ -46,6 +47,7 @@ const App: React.FC = () => {
   const [dailyNoteDates, setDailyNoteDates] = useState<string[]>([]);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('split');
   const [publishTag, setPublishTag] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -297,9 +299,9 @@ const App: React.FC = () => {
 
         {/* Right side controls */}
         <div className="flex items-center pr-3 gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <button className="p-1 hover:bg-[#e8e8e8] rounded" style={{ color: '#737373' }}>
+          {/* <button className="p-1 hover:bg-[#e8e8e8] rounded" style={{ color: '#737373' }}>
             <ChevronDown size={16} strokeWidth={1.5} />
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -353,7 +355,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Bottom vault selector and settings - all on one row */}
-          <div className="px-2 py-5 flex items-center justify-between">
+          <div className="px-2 py-5 flex items-center justify-between" style={{ borderTop: '1px solid #e0e0e0' }}>
             <button className="flex items-center px-2 py-1.5 hover:bg-[#e8e8e8] rounded text-xs" style={{ color: '#737373', backgroundColor: 'transparent' }}>
               <div className="flex flex-col items-center mr-1">
                 <ChevronUp size={10} strokeWidth={2} className="mb-[-4px]" />
@@ -378,22 +380,41 @@ const App: React.FC = () => {
         {viewMode === 'editor' && selectedFile ? (
           <>
             {/* Navigation bar with breadcrumb */}
-            <div className="h-9 flex items-center justify-between px-3" style={{ borderBottom: '1px solid #e0e0e0' }}>
-              <div className="flex items-center gap-2">
-                <button className="p-1 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373' }} title="Back">
-                  <ChevronLeft size={18} strokeWidth={1.5} />
+            <div className="flex items-center px-3 relative" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
+              {/* Left side - arrow buttons */}
+              {/* <div className="flex items-center gap-2">
+                <button className="p-1 rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Back">
+                  <ArrowLeft size={18} strokeWidth={1.5} />
                 </button>
-                <button className="p-1 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373' }} title="Forward">
-                  <ChevronRight size={18} strokeWidth={1.5} />
+                <button className="p-1 rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Forward">
+                  <ArrowRight size={18} strokeWidth={1.5} />
                 </button>
-                <div className="ml-2">
-                  <Breadcrumb path={selectedFile} />
-                </div>
+              </div> */}
+
+              {/* Center - breadcrumbs */}
+              <div className="absolute left-1/2 transform -translate-x-1/2">
+                <Breadcrumb path={selectedFile} />
               </div>
-              <div className="flex items-center gap-1">
-                <button className="p-1 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373' }} title="More options">
-                  <MoreHorizontal size={18} strokeWidth={1.5} />
+
+              {/* Right side - view mode icon */}
+              <div className="flex items-center gap-1 ml-auto">
+                <button
+                  className="p-1 rounded transition-colors"
+                  style={{ color: '#737373', backgroundColor: 'transparent' }}
+                  title={`View mode: ${editorViewMode}`}
+                  onClick={() => {
+                    const modes: EditorViewMode[] = ['edit', 'split', 'preview'];
+                    const currentIndex = modes.indexOf(editorViewMode);
+                    setEditorViewMode(modes[(currentIndex + 1) % 3]);
+                  }}
+                >
+                  {editorViewMode === 'edit' && <Pencil size={18} strokeWidth={1.5} />}
+                  {editorViewMode === 'split' && <Columns size={18} strokeWidth={1.5} />}
+                  {editorViewMode === 'preview' && <BookOpen size={18} strokeWidth={1.5} />}
                 </button>
+                {/* <button className="p-1 rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="More options">
+                  <MoreHorizontal size={18} strokeWidth={1.5} />
+                </button> */}
               </div>
             </div>
 
@@ -404,11 +425,12 @@ const App: React.FC = () => {
                 initialContent={fileContent}
                 filePath={selectedFile}
                 onSave={handleSave}
+                viewMode={editorViewMode}
               />
             </div>
 
             {/* Status bar - matching Obsidian layout */}
-            <div className="h-7 flex items-center justify-end px-4 gap-4 text-xs" style={{ backgroundColor: '#f6f6f6', borderTop: '1px solid #e0e0e0', color: '#737373' }}>
+            <div className="h-7 flex items-center justify-end px-4 gap-6 text-xs" style={{ backgroundColor: '#f6f6f6', borderTop: '1px solid #e0e0e0', color: '#737373' }}>
               <div className="flex items-center gap-1">
                 <Link size={12} strokeWidth={1.5} />
                 <span>0 backlinks</span>

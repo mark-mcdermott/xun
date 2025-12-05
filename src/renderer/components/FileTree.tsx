@@ -26,12 +26,16 @@ const FileTreeNode: React.FC<FileTreeProps> = ({ node, onFileClick, level = 0 })
       guides.push(
         <div
           key={i}
-          className="w-3 h-full flex-shrink-0 relative"
-          style={{ marginLeft: i === 0 ? '8px' : '0' }}
+          className="flex-shrink-0 flex items-center"
+          style={{ width: '16px', marginLeft: i === 0 ? '8px' : '0' }}
         >
           <div
-            className="absolute left-1/2 top-0 bottom-0 w-px"
-            style={{ backgroundColor: '#e0e0e0' }}
+            style={{
+              width: '1px',
+              height: '28px',
+              backgroundColor: '#e0e0e0',
+              marginLeft: '7px'
+            }}
           />
         </div>
       );
@@ -42,7 +46,7 @@ const FileTreeNode: React.FC<FileTreeProps> = ({ node, onFileClick, level = 0 })
   return (
     <div>
       <div
-        className="flex items-center gap-2 pr-2 hover:bg-[#e8e8e8] cursor-pointer group"
+        className="flex items-center gap-4 pr-2 hover:bg-[#e8e8e8] cursor-pointer group"
         style={{
           fontSize: '13.75px',
           color: '#5c5c5c',

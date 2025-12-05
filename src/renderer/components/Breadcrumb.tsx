@@ -20,11 +20,12 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate }) => {
   });
 
   return (
-    <div className="flex items-center gap-1.5 text-sm overflow-x-auto">
+    <div className="flex items-center gap-1.5 overflow-x-auto" style={{ fontSize: '13.75px', color: '#5c5c5c' }}>
       {/* Home/Vault icon */}
       <button
         onClick={() => onNavigate?.('')}
-        className="flex items-center text-obsidian-text-muted hover:text-accent transition-colors flex-shrink-0"
+        className="flex items-center transition-colors flex-shrink-0"
+        style={{ color: '#5c5c5c' }}
         title="Vault root"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,15 +36,16 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate }) => {
       {/* Path segments */}
       {pathSegments.map((segment, index) => (
         <React.Fragment key={segment.path}>
-          <span className="text-obsidian-text-muted flex-shrink-0">/</span>
+          {index > 0 && <span className="flex-shrink-0" style={{ color: '#5c5c5c' }}>/</span>}
           {segment.isLast ? (
-            <span className="font-medium text-obsidian-text truncate">
+            <span className="font-medium truncate" style={{ color: '#5c5c5c' }}>
               {segment.name}
             </span>
           ) : (
             <button
               onClick={() => onNavigate?.(segment.path)}
-              className="text-obsidian-text-secondary hover:text-accent transition-colors truncate"
+              className="transition-colors truncate"
+              style={{ color: '#5c5c5c' }}
             >
               {segment.name}
             </button>

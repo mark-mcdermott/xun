@@ -88,6 +88,11 @@ code {
   outline-offset: 2px;
 }
 
+/* Remove focus ring from editor textarea */
+textarea:focus-visible {
+  outline: none;
+}
+
 /* Smooth transitions for interactive elements */
 button, a {
   transition: all 0.15s ease;

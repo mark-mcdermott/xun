@@ -8,15 +8,16 @@ interface MarkdownEditorProps {
   initialContent: string;
   filePath: string;
   onSave: (content: string) => Promise<void>;
+  viewMode: 'edit' | 'preview' | 'split';
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   initialContent,
   filePath,
-  onSave
+  onSave,
+  viewMode
 }) => {
   const [content, setContent] = useState(initialContent);
-  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'split'>('split');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -89,56 +90,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-obsidian-bg">
-      {/* Toolbar */}
-      <div className="h-9 border-b border-obsidian-border flex items-center justify-between px-3">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setViewMode('edit')}
-            className={`px-2.5 py-1 text-xs rounded transition-colors ${
-              viewMode === 'edit'
-                ? 'bg-accent/20 text-accent font-medium'
-                : 'text-obsidian-text-secondary hover:text-obsidian-text hover:bg-obsidian-hover'
-            }`}
-          >
-            Edit
-          </button>
-          <button
-            onClick={() => setViewMode('split')}
-            className={`px-2.5 py-1 text-xs rounded transition-colors ${
-              viewMode === 'split'
-                ? 'bg-accent/20 text-accent font-medium'
-                : 'text-obsidian-text-secondary hover:text-obsidian-text hover:bg-obsidian-hover'
-            }`}
-          >
-            Split
-          </button>
-          <button
-            onClick={() => setViewMode('preview')}
-            className={`px-2.5 py-1 text-xs rounded transition-colors ${
-              viewMode === 'preview'
-                ? 'bg-accent/20 text-accent font-medium'
-                : 'text-obsidian-text-secondary hover:text-obsidian-text hover:bg-obsidian-hover'
-            }`}
-          >
-            Preview
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs">
-          {isSaving && (
-            <span className="text-accent flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse"></span>
-              Saving...
-            </span>
-          )}
-          {lastSaved && !isSaving && (
-            <span className="text-obsidian-text-muted">
-              Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-        </div>
-      </div>
-
       {/* Editor and Preview */}
       <div className="flex-1 flex overflow-hidden">
         {/* Editor */}
@@ -154,7 +105,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               onChange={handleContentChange}
               onKeyDown={handleKeyDown}
               className="flex-1 w-full font-mono text-sm resize-none focus:outline-none bg-obsidian-bg text-obsidian-text placeholder-obsidian-text-muted leading-relaxed"
-              style={{ padding: '24px 24px 24px 32px' }}
+              style={{ padding: '24px' }}
               placeholder="Start writing..."
               spellCheck={false}
             />
@@ -167,7 +118,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             className={`${
               viewMode === 'split' ? 'w-1/2' : 'w-full'
             } overflow-auto bg-obsidian-bg`}
-            style={{ padding: '24px 24px 24px 48px' }}
+            style={{ padding: `10px 24px 24px ${viewMode === 'preview' ? '45px' : '90px'}` }}
           >
             <div className="prose prose-sm max-w-none" style={{ overflow: 'hidden' }}>
               <ReactMarkdown
