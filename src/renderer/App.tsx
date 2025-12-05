@@ -10,12 +10,14 @@ import {
   FilePlus,
   FolderPlus,
   X,
+  Plus,
   ArrowLeft,
   ArrowRight,
   MoreHorizontal,
   Pencil,
   Link,
   PanelLeftClose,
+  PanelLeftOpen,
   Columns,
   BookOpen
 } from 'lucide-react';
@@ -50,6 +52,7 @@ const App: React.FC = () => {
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('split');
   const [publishTag, setPublishTag] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Load today's note on mount
   useEffect(() => {
@@ -281,21 +284,37 @@ const App: React.FC = () => {
 
       {/* Top bar - spans full width */}
       <div className="h-[45px] flex items-center" style={{ backgroundColor: '#f6f6f6', borderBottom: '1px solid #e0e0e0' }}>
-        {/* Left section - same width as both sidebars (44px + 1px border + 260px = 305px) */}
-        <div className="w-[305px] h-full flex items-center" style={{ borderRight: '1px solid #e0e0e0' }}>
+        {/* Left section - same width as both sidebars (44px + 1px border + 260px = 305px, or just 45px when collapsed) */}
+        <div className={`h-full flex items-center ${sidebarCollapsed ? 'w-auto' : 'w-[305px]'}`} style={{ borderRight: sidebarCollapsed ? 'none' : '1px solid #e0e0e0' }}>
           {/* macOS traffic light space */}
           <div className="w-[70px] h-full" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
 
           {/* Collapse sidebar button */}
-          <div className="flex items-center justify-end h-full flex-1">
-            <button className="h-full px-3 hover:bg-[#e8e8e8] transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Collapse sidebar">
-              <PanelLeftClose size={20} strokeWidth={1.5} />
+          <div className="flex items-center justify-end h-full flex-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+            <button className="h-full px-3 hover:bg-[#e8e8e8] transition-colors cursor-pointer" style={{ color: '#737373', backgroundColor: 'transparent', marginLeft: sidebarCollapsed ? '10px' : '0' }} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+              {sidebarCollapsed ? <PanelLeftOpen size={22} strokeWidth={1.5} style={{ marginTop: '1px' }} /> : <PanelLeftClose size={20} strokeWidth={1.5} />}
             </button>
           </div>
         </div>
 
-        {/* Spacer with drag region */}
-        <div className="flex-1 h-full" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
+        {/* Tab bar in title bar */}
+        <div className="flex items-end h-full flex-1" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+          {selectedFile && (
+            <div className="flex items-end h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+              {/* Active tab */}
+              <div className="flex items-center gap-2" style={{ backgroundColor: '#ffffff', borderRight: '1px solid #e0e0e0', borderTop: '1px solid #e0e0e0', borderLeft: '1px solid #e0e0e0', borderBottom: '1px solid #ffffff', marginLeft: sidebarCollapsed ? '15px' : '12px', height: 'calc(100% - 8px)', paddingLeft: '10px', paddingRight: '4px', borderTopLeftRadius: '8px', borderTopRightRadius: '8px', marginBottom: '-1px' }}>
+                <span style={{ fontSize: '13.5px', color: '#4a4a4a', marginRight: '64px' }}>{getFileName(selectedFile)}</span>
+                <button className="p-0.5 rounded transition-colors flex items-center justify-center" style={{ color: '#4a4a4a', backgroundColor: 'transparent' }} title="Close tab">
+                  <X size={16} strokeWidth={2} />
+                </button>
+              </div>
+              {/* New tab button */}
+              <button className="h-full transition-colors flex items-center justify-center" style={{ color: '#808080', backgroundColor: 'transparent', paddingLeft: '12px', paddingRight: '8px' }} title="New tab">
+                <Plus size={18} strokeWidth={1.5} style={{ marginTop: '2px' }} />
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Right side controls */}
         <div className="flex items-center pr-3 gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
@@ -308,12 +327,12 @@ const App: React.FC = () => {
       {/* Main area below top bar */}
       <div className="flex-1 flex overflow-hidden">
         {/* Far-left Icon Sidebar */}
-        <div className="w-[44px] min-w-[44px] flex-shrink-0 flex flex-col items-center gap-2" style={{ backgroundColor: '#f6f6f6', borderRight: '1px solid #e0e0e0', paddingTop: '32px' }}>
+        <div className="w-[44px] min-w-[44px] flex-shrink-0 flex flex-col items-center" style={{ backgroundColor: '#f6f6f6', borderRight: '1px solid #e0e0e0', paddingTop: '16px' }}>
           {/* Top icons */}
-          <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Calendar" onClick={() => setSidebarTab('daily')}>
+          <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent', marginBottom: '8px' }} title="Calendar" onClick={() => setSidebarTab('daily')}>
             <Calendar size={20} strokeWidth={1.5} />
           </button>
-          <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Files" onClick={() => setSidebarTab('files')}>
+          <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent', marginBottom: '8px' }} title="Files" onClick={() => setSidebarTab('files')}>
             <FileText size={20} strokeWidth={1.5} />
           </button>
           <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Tags" onClick={() => setSidebarTab('tags')}>
@@ -322,9 +341,10 @@ const App: React.FC = () => {
         </div>
 
         {/* Left Sidebar - File tree with toolbar */}
+        {!sidebarCollapsed && (
         <div className="w-[260px] flex flex-col" style={{ backgroundColor: '#f6f6f6', borderRight: '1px solid #e0e0e0', paddingTop: '16px' }}>
           {/* Sidebar toolbar */}
-          <div className="h-9 flex items-center justify-center" style={{ backgroundColor: 'transparent', marginBottom: '16px' }}>
+          <div className="h-9 flex items-center" style={{ backgroundColor: 'transparent', marginBottom: '16px', paddingLeft: '20px' }}>
             <div className="flex items-center gap-0.5">
               <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="New note" onClick={handleCreateFile}>
                 <FilePlus size={20} strokeWidth={1.5} />
@@ -355,24 +375,25 @@ const App: React.FC = () => {
           </div>
 
           {/* Bottom vault selector and settings - all on one row */}
-          <div className="px-2 py-5 flex items-center justify-between" style={{ borderTop: '1px solid #e0e0e0' }}>
+          <div className="px-2 flex items-center justify-between" style={{ borderTop: '1px solid #e0e0e0', paddingTop: '10px', paddingBottom: '10px' }}>
             <button className="flex items-center px-2 py-1.5 hover:bg-[#e8e8e8] rounded text-xs" style={{ color: '#737373', backgroundColor: 'transparent' }}>
-              <div className="flex flex-col items-center mr-1">
-                <ChevronUp size={10} strokeWidth={2} className="mb-[-4px]" />
-                <ChevronDown size={10} strokeWidth={2} />
+              <div className="flex flex-col items-center" style={{ marginRight: '6px', marginLeft: '8px' }}>
+                <ChevronUp size={12} strokeWidth={2} className="mb-[-4px]" />
+                <ChevronDown size={12} strokeWidth={2} />
               </div>
-              <span className="truncate text-left">{getVaultName()}</span>
+              <span className="truncate text-left" style={{ fontWeight: 600 }}>{getVaultName()}</span>
             </button>
             <div className="flex items-center gap-1">
-              <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Help">
+              {/* <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Help">
                 <HelpCircle size={16} strokeWidth={1.5} />
-              </button>
-              <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Settings" onClick={() => setSettingsOpen(true)}>
-                <Settings size={16} strokeWidth={1.5} />
+              </button> */}
+              <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent', marginRight: '8px' }} title="Settings" onClick={() => setSettingsOpen(true)}>
+                <Settings size={18} strokeWidth={1.5} />
               </button>
             </div>
           </div>
         </div>
+        )}
 
         {/* Main content area */}
         <div className="flex-1 flex flex-col bg-white">
@@ -430,16 +451,18 @@ const App: React.FC = () => {
             </div>
 
             {/* Status bar - matching Obsidian layout */}
-            <div className="h-7 flex items-center justify-end px-4 gap-6 text-xs" style={{ backgroundColor: '#f6f6f6', borderTop: '1px solid #e0e0e0', color: '#737373' }}>
-              <div className="flex items-center gap-1">
-                <Link size={12} strokeWidth={1.5} />
-                <span>0 backlinks</span>
+            <div className="flex items-center justify-end">
+              <div className="flex items-center" style={{ color: '#5c5c5c', gap: '28px', backgroundColor: '#f6f6f6', padding: '6px 13px', fontSize: '12.75px', borderTop: '1px solid #e0e0e0', borderLeft: '1px solid #e0e0e0', borderTopLeftRadius: '8px' }}>
+                <div className="flex items-center gap-1">
+                  <Link size={12} strokeWidth={1.5} style={{ marginRight: '3px' }} />
+                  <span>0 backlinks</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Pencil size={12} strokeWidth={1.5} style={{ marginRight: '3px' }} />
+                  <span>{getWordCount(fileContent)} {getWordCount(fileContent) === 1 ? 'word' : 'words'}</span>
+                </div>
+                <span>{getCharCount(fileContent)} {getCharCount(fileContent) === 1 ? 'character' : 'characters'}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Pencil size={12} strokeWidth={1.5} />
-              </div>
-              <span>{getWordCount(fileContent)} {getWordCount(fileContent) === 1 ? 'word' : 'words'}</span>
-              <span>{getCharCount(fileContent)} {getCharCount(fileContent) === 1 ? 'character' : 'characters'}</span>
             </div>
           </>
         ) : viewMode === 'tag-view' && selectedTag ? (

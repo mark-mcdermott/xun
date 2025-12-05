@@ -96,7 +96,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {(viewMode === 'edit' || viewMode === 'split') && (
           <div
             className={`${
-              viewMode === 'split' ? 'w-1/2 border-r border-obsidian-border' : 'w-full'
+              viewMode === 'split' ? 'w-1/2' : 'w-full'
             } flex flex-col`}
           >
             <textarea
@@ -105,7 +105,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               onChange={handleContentChange}
               onKeyDown={handleKeyDown}
               className="flex-1 w-full font-mono text-sm resize-none focus:outline-none bg-obsidian-bg text-obsidian-text placeholder-obsidian-text-muted leading-relaxed"
-              style={{ padding: '24px' }}
+              style={{ padding: viewMode === 'edit' ? '40px 24px 24px 48px' : '24px' }}
               placeholder="Start writing..."
               spellCheck={false}
             />
