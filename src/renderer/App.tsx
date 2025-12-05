@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Calendar,
   Settings,
@@ -53,6 +53,9 @@ const App: React.FC = () => {
   const [publishTag, setPublishTag] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   // Load today's note on mount
   useEffect(() => {
@@ -105,6 +108,41 @@ const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Sidebar resize handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    resizeRef.current = { startX: e.clientX, startWidth: sidebarWidth };
+  }, [sidebarWidth]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !resizeRef.current) return;
+      const delta = e.clientX - resizeRef.current.startX;
+      const newWidth = Math.max(180, Math.min(400, resizeRef.current.startWidth + delta));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeRef.current = null;
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   const handleFileClick = async (path: string) => {
     try {
@@ -284,8 +322,8 @@ const App: React.FC = () => {
 
       {/* Top bar - spans full width */}
       <div className="h-[45px] flex items-center" style={{ backgroundColor: '#f6f6f6', borderBottom: '1px solid #e0e0e0' }}>
-        {/* Left section - same width as both sidebars (44px + 1px border + 260px = 305px, or just 45px when collapsed) */}
-        <div className={`h-full flex items-center ${sidebarCollapsed ? 'w-auto' : 'w-[305px]'}`} style={{ borderRight: sidebarCollapsed ? 'none' : '1px solid #e0e0e0' }}>
+        {/* Left section - same width as both sidebars (44px + 1px border + sidebarWidth, or just auto when collapsed) */}
+        <div className="h-full flex items-center" style={{ width: sidebarCollapsed ? 'auto' : `${44 + 1 + sidebarWidth}px`, borderRight: sidebarCollapsed ? 'none' : '1px solid #e0e0e0' }}>
           {/* macOS traffic light space */}
           <div className="w-[70px] h-full" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
 
@@ -342,7 +380,13 @@ const App: React.FC = () => {
 
         {/* Left Sidebar - File tree with toolbar */}
         {!sidebarCollapsed && (
-        <div className="w-[260px] flex flex-col" style={{ backgroundColor: '#f6f6f6', borderRight: '1px solid #e0e0e0', paddingTop: '16px' }}>
+        <div className="flex flex-col relative" style={{ width: `${sidebarWidth}px`, backgroundColor: '#f6f6f6', paddingTop: '16px' }}>
+          {/* Resize handle */}
+          <div
+            className="absolute top-0 h-full cursor-col-resize hover:bg-blue-400/50 transition-colors"
+            style={{ right: 0, width: '4px', backgroundColor: isResizing ? 'rgba(96, 165, 250, 0.5)' : 'transparent', borderRight: '1px solid #e0e0e0' }}
+            onMouseDown={handleResizeStart}
+          />
           {/* Sidebar toolbar */}
           <div className="h-9 flex items-center" style={{ backgroundColor: 'transparent', marginBottom: '16px', paddingLeft: '20px' }}>
             <div className="flex items-center gap-0.5">
