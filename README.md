@@ -12,8 +12,10 @@ A small Electron app that looks like Obsidian and has core note-taking functiona
   - Even if you mix everything into daily notes, you can still quickly make a blog post in the middle and publish just the post, without publishing the rest of the note.
   - Can handle multiple blogs and let's you select which blog you want to publish each post to.
   - Shows a nice progress bar and publish status so you know if the build is still running and if it succeeds or not.
+- New blogpost template macro
+  - typing `===` and then pressing enter will create a blank blog post template where your cursor is. This includes frontmatter for post meta-information.
 - A delete all content under a single tag feature
-  - You can mix all your work and personal notes into daily notes using tags to track of the different content types.l
+  - You can mix all your work and personal notes into daily notes using tags to track of the different content types.
   - You can later easily delete all content from one tag. Handy if you ever leave your current job and need to quickly delete all work notes without losing any of your personal notes.
 
 ### Core Note Taking Features
@@ -87,11 +89,11 @@ These files provide context about the project architecture, coding standards, an
 
 ## Dev Process
 
-I vibe coded this in Claude Code in about a week's worth of evenings/weekends, using the Playwright MPC server to have Claude check its own work. Then I went back and reviewed everything line by line and researched the parts I didn't understand.
+I vibe-coded this in Claude Code in about a week's worth of evenings/weekends, using the Playwright MPC server to have Claude check its own work.
 
 ## License
 
-Private project - not open source.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Status
 
