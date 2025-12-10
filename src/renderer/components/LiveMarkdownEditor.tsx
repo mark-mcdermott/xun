@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
-import { EditorState, StateEffect, StateField, Text } from '@codemirror/state';
+import { EditorState, StateField, Text, Range } from '@codemirror/state';
 import {
   EditorView,
   Decoration,
@@ -13,23 +13,252 @@ import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { autocompletion, CompletionContext, Completion, startCompletion } from '@codemirror/autocomplete';
 
-// Widget that renders markdown as HTML
-class RenderedMarkdownWidget extends WidgetType {
-  constructor(readonly html: string) {
-    super();
-  }
+// ============================================================================
+// Types for markdown element parsing
+// ============================================================================
 
-  toDOM() {
-    const wrapper = document.createElement('span');
-    wrapper.innerHTML = this.html;
-    wrapper.className = 'cm-rendered-markdown';
-    return wrapper;
-  }
-
-  eq(other: RenderedMarkdownWidget) {
-    return other.html === this.html;
-  }
+interface MarkdownElement {
+  type: 'bold' | 'italic' | 'code' | 'strikethrough' | 'link' | 'image' | 'tag';
+  from: number;  // Start of entire element (including markers)
+  to: number;    // End of entire element (including markers)
+  openMarker: { from: number; to: number };
+  closeMarker: { from: number; to: number };
+  // For links: extra info
+  linkUrl?: string;
 }
+
+interface HeaderElement {
+  type: 'header';
+  level: number;
+  from: number;
+  to: number;
+  markerFrom: number;
+  markerTo: number;  // includes the space after #
+}
+
+interface ListElement {
+  type: 'list';
+  listType: 'ul' | 'ol' | 'task';
+  checked?: boolean;
+  from: number;
+  to: number;
+  markerFrom: number;
+  markerTo: number;
+  indent: number;
+}
+
+interface BlockquoteElement {
+  type: 'blockquote';
+  from: number;
+  to: number;
+  markerFrom: number;
+  markerTo: number;
+}
+
+// ============================================================================
+// Markdown element parser - identifies inline elements and their marker positions
+// ============================================================================
+
+function parseInlineElements(text: string, lineFrom: number): MarkdownElement[] {
+  const elements: MarkdownElement[] = [];
+
+  // Bold: **text** (must check before italic)
+  const boldRegex = /\*\*([^*]+)\*\*/g;
+  let match;
+  while ((match = boldRegex.exec(text)) !== null) {
+    elements.push({
+      type: 'bold',
+      from: lineFrom + match.index,
+      to: lineFrom + match.index + match[0].length,
+      openMarker: { from: lineFrom + match.index, to: lineFrom + match.index + 2 },
+      closeMarker: { from: lineFrom + match.index + match[0].length - 2, to: lineFrom + match.index + match[0].length }
+    });
+  }
+
+  // Bold with underscores: __text__
+  const boldUnderscoreRegex = /__([^_]+)__/g;
+  while ((match = boldUnderscoreRegex.exec(text)) !== null) {
+    elements.push({
+      type: 'bold',
+      from: lineFrom + match.index,
+      to: lineFrom + match.index + match[0].length,
+      openMarker: { from: lineFrom + match.index, to: lineFrom + match.index + 2 },
+      closeMarker: { from: lineFrom + match.index + match[0].length - 2, to: lineFrom + match.index + match[0].length }
+    });
+  }
+
+  // Italic: *text* (single asterisk, but not inside bold)
+  // Need to be careful not to match bold markers
+  const italicRegex = /(?<!\*)\*([^*]+)\*(?!\*)/g;
+  while ((match = italicRegex.exec(text)) !== null) {
+    const from = lineFrom + match.index;
+    const to = lineFrom + match.index + match[0].length;
+    // Check if this overlaps with any bold element
+    const overlapsWithBold = elements.some(el =>
+      el.type === 'bold' && !(to <= el.from || from >= el.to)
+    );
+    if (!overlapsWithBold) {
+      elements.push({
+        type: 'italic',
+        from,
+        to,
+        openMarker: { from, to: from + 1 },
+        closeMarker: { from: to - 1, to }
+      });
+    }
+  }
+
+  // Italic with underscores: _text_
+  const italicUnderscoreRegex = /(?<![_\w])_([^_]+)_(?![_\w])/g;
+  while ((match = italicUnderscoreRegex.exec(text)) !== null) {
+    elements.push({
+      type: 'italic',
+      from: lineFrom + match.index,
+      to: lineFrom + match.index + match[0].length,
+      openMarker: { from: lineFrom + match.index, to: lineFrom + match.index + 1 },
+      closeMarker: { from: lineFrom + match.index + match[0].length - 1, to: lineFrom + match.index + match[0].length }
+    });
+  }
+
+  // Strikethrough: ~~text~~
+  const strikeRegex = /~~([^~]+)~~/g;
+  while ((match = strikeRegex.exec(text)) !== null) {
+    elements.push({
+      type: 'strikethrough',
+      from: lineFrom + match.index,
+      to: lineFrom + match.index + match[0].length,
+      openMarker: { from: lineFrom + match.index, to: lineFrom + match.index + 2 },
+      closeMarker: { from: lineFrom + match.index + match[0].length - 2, to: lineFrom + match.index + match[0].length }
+    });
+  }
+
+  // Inline code: `code`
+  const codeRegex = /`([^`]+)`/g;
+  while ((match = codeRegex.exec(text)) !== null) {
+    elements.push({
+      type: 'code',
+      from: lineFrom + match.index,
+      to: lineFrom + match.index + match[0].length,
+      openMarker: { from: lineFrom + match.index, to: lineFrom + match.index + 1 },
+      closeMarker: { from: lineFrom + match.index + match[0].length - 1, to: lineFrom + match.index + match[0].length }
+    });
+  }
+
+  // Links: [text](url)
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  while ((match = linkRegex.exec(text)) !== null) {
+    const linkText = match[1];
+    const linkUrl = match[2];
+    const fullFrom = lineFrom + match.index;
+    const fullTo = lineFrom + match.index + match[0].length;
+    const textEnd = fullFrom + 1 + linkText.length; // after [text
+
+    elements.push({
+      type: 'link',
+      from: fullFrom,
+      to: fullTo,
+      openMarker: { from: fullFrom, to: fullFrom + 1 }, // [
+      closeMarker: { from: textEnd, to: fullTo }, // ](url)
+      linkUrl
+    });
+  }
+
+  // Tags: #tag-name
+  const tagRegex = /(^|\s)(#[a-zA-Z0-9_-]+)/g;
+  while ((match = tagRegex.exec(text)) !== null) {
+    const tagStart = lineFrom + match.index + match[1].length;
+    const tagEnd = tagStart + match[2].length;
+    elements.push({
+      type: 'tag',
+      from: tagStart,
+      to: tagEnd,
+      openMarker: { from: tagStart, to: tagStart }, // No marker to hide for tags
+      closeMarker: { from: tagEnd, to: tagEnd }
+    });
+  }
+
+  return elements;
+}
+
+function parseHeaderElement(text: string, lineFrom: number): HeaderElement | null {
+  const match = text.match(/^(#{1,6})\s+/);
+  if (match) {
+    return {
+      type: 'header',
+      level: match[1].length,
+      from: lineFrom,
+      to: lineFrom + text.length,
+      markerFrom: lineFrom,
+      markerTo: lineFrom + match[0].length
+    };
+  }
+  return null;
+}
+
+function parseListElement(text: string, lineFrom: number): ListElement | null {
+  // Task list: - [ ] or - [x]
+  const taskMatch = text.match(/^(\s*)([-*+])\s+\[([ xX])\]\s+/);
+  if (taskMatch) {
+    return {
+      type: 'list',
+      listType: 'task',
+      checked: taskMatch[3].toLowerCase() === 'x',
+      from: lineFrom,
+      to: lineFrom + text.length,
+      markerFrom: lineFrom + taskMatch[1].length,
+      markerTo: lineFrom + taskMatch[0].length,
+      indent: taskMatch[1].length
+    };
+  }
+
+  // Unordered list: - item, * item, + item
+  const ulMatch = text.match(/^(\s*)([-*+])\s+/);
+  if (ulMatch) {
+    return {
+      type: 'list',
+      listType: 'ul',
+      from: lineFrom,
+      to: lineFrom + text.length,
+      markerFrom: lineFrom + ulMatch[1].length,
+      markerTo: lineFrom + ulMatch[0].length,
+      indent: ulMatch[1].length
+    };
+  }
+
+  // Ordered list: 1. item
+  const olMatch = text.match(/^(\s*)(\d+)\.\s+/);
+  if (olMatch) {
+    return {
+      type: 'list',
+      listType: 'ol',
+      from: lineFrom,
+      to: lineFrom + text.length,
+      markerFrom: lineFrom + olMatch[1].length,
+      markerTo: lineFrom + olMatch[0].length,
+      indent: olMatch[1].length
+    };
+  }
+
+  return null;
+}
+
+function parseBlockquoteElement(text: string, lineFrom: number): BlockquoteElement | null {
+  const match = text.match(/^>\s*/);
+  if (match) {
+    return {
+      type: 'blockquote',
+      from: lineFrom,
+      to: lineFrom + text.length,
+      markerFrom: lineFrom,
+      markerTo: lineFrom + match[0].length
+    };
+  }
+  return null;
+}
+
+// ============================================================================
+// Widgets (kept for special cases: blog blocks, images, code blocks)
+// ============================================================================
 
 // Lucide icon SVGs (inline to avoid React component in vanilla DOM widget)
 const ROCKET_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>`;
@@ -75,7 +304,6 @@ class BlogBlockHeaderWidget extends WidgetType {
         iconBtn.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
-          // Dispatch custom event with block line number
           window.dispatchEvent(new CustomEvent('blog-publish-click', {
             detail: { blockLine }
           }));
@@ -94,171 +322,70 @@ class BlogBlockHeaderWidget extends WidgetType {
   }
 }
 
-// Simple markdown to HTML converter for inline elements
-function renderMarkdownLine(text: string, insideBlogBlock = false): { html: string; isBlock: boolean } {
-  let html = text;
-  let isBlock = false;
-
-  // Headers
-  const headerMatch = text.match(/^(#{1,6})\s+(.*)$/);
-  if (headerMatch) {
-    const level = headerMatch[1].length;
-    const content = renderInlineMarkdown(headerMatch[2]);
-    const styles: Record<number, string> = {
-      1: 'font-size: 1.75em; font-weight: 700; line-height: 1.2;',
-      2: 'font-size: 1.5em; font-weight: 700; line-height: 1.25;',
-      3: 'font-size: 1.25em; font-weight: 600; line-height: 1.3;',
-      4: 'font-size: 1.1em; font-weight: 600; line-height: 1.4;',
-      5: 'font-size: 1em; font-weight: 600; line-height: 1.4;',
-      6: 'font-size: 0.9em; font-weight: 600; line-height: 1.4;'
-    };
-    html = `<span style="${styles[level]}">${content}</span>`;
-    isBlock = true;
-    return { html, isBlock };
+// Simple widget for code block labels and closing blog markers
+class SimpleTextWidget extends WidgetType {
+  constructor(readonly html: string) {
+    super();
   }
 
-  // Horizontal rule - but NOT inside blog blocks (where --- is frontmatter delimiter)
-  if (!insideBlogBlock && /^(-{3,}|\*{3,}|_{3,})$/.test(text.trim())) {
-    html = '<hr style="margin: 8px 0; border: none; border-top: 1px solid #d1d5db;" />';
-    isBlock = true;
-    return { html, isBlock };
+  toDOM() {
+    const wrapper = document.createElement('span');
+    wrapper.innerHTML = this.html;
+    wrapper.className = 'cm-simple-widget';
+    return wrapper;
   }
 
-  // Blockquote
-  if (text.startsWith('> ')) {
-    const content = renderInlineMarkdown(text.slice(2));
-    html = `<span style="border-left: 4px solid #9ca3af; padding-left: 12px; font-style: italic; color: #6b7280;">${content}</span>`;
-    isBlock = true;
-    return { html, isBlock };
+  eq(other: SimpleTextWidget) {
+    return other.html === this.html;
   }
-
-  // Unordered list item
-  const ulMatch = text.match(/^(\s*)[-*+]\s+(.*)$/);
-  if (ulMatch) {
-    const indent = ulMatch[1].length;
-    const content = renderInlineMarkdown(ulMatch[2]);
-    const marginLeft = indent * 8;
-    html = `<span style="margin-left: ${marginLeft}px"><span style="margin-right: 8px;">•</span>${content}</span>`;
-    isBlock = true;
-    return { html, isBlock };
-  }
-
-  // Ordered list item
-  const olMatch = text.match(/^(\s*)(\d+)\.\s+(.*)$/);
-  if (olMatch) {
-    const indent = olMatch[1].length;
-    const num = olMatch[2];
-    const content = renderInlineMarkdown(olMatch[3]);
-    const marginLeft = indent * 8;
-    html = `<span style="margin-left: ${marginLeft}px"><span style="margin-right: 8px;">${num}.</span>${content}</span>`;
-    isBlock = true;
-    return { html, isBlock };
-  }
-
-  // Task list item
-  const taskMatch = text.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)$/);
-  if (taskMatch) {
-    const indent = taskMatch[1].length;
-    const checked = taskMatch[2].toLowerCase() === 'x';
-    const content = renderInlineMarkdown(taskMatch[3]);
-    const marginLeft = indent * 8;
-    const checkbox = checked
-      ? '<span style="margin-right: 8px;">☑</span>'
-      : '<span style="margin-right: 8px;">☐</span>';
-    html = `<span style="margin-left: ${marginLeft}px">${checkbox}${content}</span>`;
-    isBlock = true;
-    return { html, isBlock };
-  }
-
-  // Code block fence (just show as-is, we handle multi-line elsewhere)
-  if (text.startsWith('```')) {
-    return { html: text, isBlock: false };
-  }
-
-  // Regular paragraph with inline formatting
-  html = renderInlineMarkdown(text);
-  return { html, isBlock: false };
 }
 
-// Render inline markdown elements
-function renderInlineMarkdown(text: string): string {
-  let html = text;
+// Widget for rendering images
+class ImageWidget extends WidgetType {
+  constructor(readonly src: string, readonly alt: string) {
+    super();
+  }
 
-  // Escape HTML first
-  html = html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  toDOM() {
+    const img = document.createElement('img');
+    img.src = this.src;
+    img.alt = this.alt;
+    img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 8px 0;';
+    return img;
+  }
 
-  // Images: ![alt](url)
-  html = html.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1" style="max-width: 100%; height: auto; display: inline;" />'
-  );
-
-  // Links: [text](url)
-  html = html.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" style="color: #7c3aed; text-decoration: underline;">$1</a>'
-  );
-
-  // Bold: **text** or __text__
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-
-  // Italic: *text* or _text_
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  html = html.replace(/(?<![_\w])_([^_]+)_(?![_\w])/g, '<em>$1</em>');
-
-  // Strikethrough: ~~text~~
-  html = html.replace(/~~([^~]+)~~/g, '<del style="text-decoration: line-through;">$1</del>');
-
-  // Inline code: `code`
-  html = html.replace(
-    /`([^`]+)`/g,
-    '<code style="background-color: #e5e7eb; padding: 0 4px; border-radius: 3px; font-family: monospace; font-size: 0.9em;">$1</code>'
-  );
-
-  // Tags: #tag-name - make them clickable
-  html = html.replace(
-    /(^|\s)(#[a-zA-Z0-9_-]+)/g,
-    '$1<span class="cm-tag-link" data-tag="$2">$2</span>'
-  );
-
-  return html;
+  eq(other: ImageWidget) {
+    return other.src === this.src && other.alt === this.alt;
+  }
 }
 
-// Effect to update the active line
-const setActiveLine = StateEffect.define<number>();
+// ============================================================================
+// State field for cursor position tracking
+// ============================================================================
 
-// State field to track the active line number
-const activeLineField = StateField.define<number>({
+const cursorPositionField = StateField.define<number>({
   create() {
     return -1;
   },
   update(value, tr) {
-    for (const effect of tr.effects) {
-      if (effect.is(setActiveLine)) {
-        return effect.value;
-      }
-    }
-    // Update based on selection
     if (tr.selection) {
-      const line = tr.state.doc.lineAt(tr.selection.main.head);
-      return line.number;
+      return tr.selection.main.head;
     }
     return value;
   }
 });
 
-// Create decorations for rendered markdown
+// ============================================================================
+// Create decorations - the core of live preview
+// ============================================================================
+
 function createDecorations(
   view: EditorView,
   onPublish?: (blogId: string, content: string) => void,
   blogs?: Array<{ id: string; name: string }>
 ): DecorationSet {
-  const activeLine = view.state.field(activeLineField);
-  const decorations: Array<{ from: number; to: number; decoration: Decoration }> = [];
+  const cursorPos = view.state.field(cursorPositionField);
+  const decorations: Range<Decoration>[] = [];
   const doc = view.state.doc;
 
   let inCodeBlock = false;
@@ -268,6 +395,7 @@ function createDecorations(
   for (let i = 1; i <= doc.lines; i++) {
     const line = doc.line(i);
     const lineText = line.text;
+    const cursorOnThisLine = cursorPos >= line.from && cursorPos <= line.to;
 
     // Track blog block state
     if (lineText.trim() === '===') {
@@ -280,49 +408,33 @@ function createDecorations(
         let isPublished = false;
         for (let j = i + 1; j <= doc.lines; j++) {
           const checkLine = doc.line(j).text.trim();
-          if (checkLine === '===') break; // End of block
+          if (checkLine === '===') break;
           if (checkLine.match(/^published:\s*true/)) {
             isPublished = true;
             break;
           }
         }
 
-        // Skip decoration if this is the active line
-        if (i !== activeLine) {
-          decorations.push({
-            from: line.from,
-            to: line.to,
-            decoration: Decoration.replace({
+        // Show widget unless cursor is on this line
+        if (!cursorOnThisLine) {
+          decorations.push(
+            Decoration.replace({
               widget: new BlogBlockHeaderWidget(i, Boolean(onPublish), isPublished)
-            })
-          });
+            }).range(line.from, line.to)
+          );
         }
       } else {
         // Closing ===
         inBlogBlock = false;
         blogBlockStartLine = -1;
 
-        // Skip decoration if this is the active line
-        if (i !== activeLine) {
-          decorations.push({
-            from: line.from,
-            to: line.to,
-            decoration: Decoration.replace({
-              widget: new RenderedMarkdownWidget(
-                `<span style="color: #9ca3af; font-size: 0.85em;">═══</span>`
-              )
-            })
-          });
+        if (!cursorOnThisLine) {
+          decorations.push(
+            Decoration.replace({
+              widget: new SimpleTextWidget(`<span style="color: #9ca3af; font-size: 0.85em;">═══</span>`)
+            }).range(line.from, line.to)
+          );
         }
-      }
-      continue;
-    }
-
-    // Skip the active line - show raw markdown there
-    if (i === activeLine) {
-      // Check if this line starts/ends a code block
-      if (lineText.startsWith('```')) {
-        inCodeBlock = !inCodeBlock;
       }
       continue;
     }
@@ -330,40 +442,28 @@ function createDecorations(
     // Track code block state
     if (lineText.startsWith('```')) {
       inCodeBlock = !inCodeBlock;
-      // Show code fence as-is but styled
-      if (lineText.length > 0) {
+      if (!cursorOnThisLine) {
         const lang = lineText.slice(3);
         const label = lang ? `Code (${lang})` : 'Code';
-        decorations.push({
-          from: line.from,
-          to: line.to,
-          decoration: Decoration.replace({
-            widget: new RenderedMarkdownWidget(
-              `<span style="color: #9ca3af; font-size: 0.75em;">${label}</span>`
-            )
-          })
-        });
+        decorations.push(
+          Decoration.replace({
+            widget: new SimpleTextWidget(`<span style="color: #9ca3af; font-size: 0.75em;">${label}</span>`)
+          }).range(line.from, line.to)
+        );
       }
       continue;
     }
 
-    // Inside code block - show with code styling
+    // Inside code block - apply code styling
     if (inCodeBlock) {
-      if (lineText.length > 0) {
-        const escaped = lineText
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-        decorations.push({
-          from: line.from,
-          to: line.to,
-          decoration: Decoration.replace({
-            widget: new RenderedMarkdownWidget(
-              `<code style="background-color: #f3f4f6; padding: 0 4px; font-family: monospace; font-size: 0.9em; display: block;">${escaped}</code>`
-            )
-          })
-        });
-      }
+      decorations.push(
+        Decoration.mark({ class: 'cm-code-block-line' }).range(line.from, line.to)
+      );
+      continue;
+    }
+
+    // Inside blog block - don't apply markdown formatting (frontmatter)
+    if (inBlogBlock) {
       continue;
     }
 
@@ -372,26 +472,154 @@ function createDecorations(
       continue;
     }
 
-    // Render the line (pass blog block state to disable HR inside blog blocks)
-    const { html } = renderMarkdownLine(lineText, inBlogBlock);
-    if (html !== lineText) {
-      decorations.push({
-        from: line.from,
-        to: line.to,
-        decoration: Decoration.replace({
-          widget: new RenderedMarkdownWidget(html)
-        })
-      });
+    // Horizontal rule
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(lineText.trim())) {
+      if (!cursorOnThisLine) {
+        decorations.push(
+          Decoration.mark({ class: 'cm-horizontal-rule' }).range(line.from, line.to)
+        );
+      }
+      continue;
+    }
+
+    // Check for images: ![alt](url) - use widget to actually render
+    const imageMatch = lineText.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imageMatch && !cursorOnThisLine) {
+      decorations.push(
+        Decoration.replace({
+          widget: new ImageWidget(imageMatch[2], imageMatch[1])
+        }).range(line.from, line.to)
+      );
+      continue;
+    }
+
+    // Parse header
+    const header = parseHeaderElement(lineText, line.from);
+    if (header) {
+      // Apply header styling to the content (after marker)
+      decorations.push(
+        Decoration.mark({ class: `cm-header cm-header-${header.level}` }).range(header.markerTo, header.to)
+      );
+      // Hide the # markers unless cursor is in them
+      const cursorInMarker = cursorPos >= header.markerFrom && cursorPos <= header.markerTo;
+      if (!cursorInMarker) {
+        decorations.push(
+          Decoration.mark({ class: 'cm-hidden-marker' }).range(header.markerFrom, header.markerTo)
+        );
+      }
+    }
+
+    // Parse list elements
+    const listEl = parseListElement(lineText, line.from);
+    if (listEl) {
+      const cursorInMarker = cursorPos >= listEl.markerFrom && cursorPos <= listEl.markerTo;
+      if (!cursorInMarker) {
+        // Add a decoration to hide the marker
+        decorations.push(
+          Decoration.mark({ class: 'cm-hidden-marker' }).range(listEl.markerFrom, listEl.markerTo)
+        );
+      }
+      // Add bullet/number via line decoration
+      if (listEl.listType === 'ul') {
+        decorations.push(
+          Decoration.line({ class: 'cm-list-bullet', attributes: { 'data-indent': String(listEl.indent) } }).range(line.from)
+        );
+      } else if (listEl.listType === 'ol') {
+        decorations.push(
+          Decoration.line({ class: 'cm-list-number' }).range(line.from)
+        );
+      } else if (listEl.listType === 'task') {
+        decorations.push(
+          Decoration.line({ class: listEl.checked ? 'cm-list-task-checked' : 'cm-list-task-unchecked' }).range(line.from)
+        );
+      }
+    }
+
+    // Parse blockquote
+    const blockquote = parseBlockquoteElement(lineText, line.from);
+    if (blockquote) {
+      const cursorInMarker = cursorPos >= blockquote.markerFrom && cursorPos <= blockquote.markerTo;
+      if (!cursorInMarker) {
+        decorations.push(
+          Decoration.mark({ class: 'cm-hidden-marker' }).range(blockquote.markerFrom, blockquote.markerTo)
+        );
+      }
+      decorations.push(
+        Decoration.line({ class: 'cm-blockquote' }).range(line.from)
+      );
+    }
+
+    // Parse inline elements
+    const inlineElements = parseInlineElements(lineText, line.from);
+    for (const el of inlineElements) {
+      const cursorInElement = cursorPos >= el.from && cursorPos <= el.to;
+
+      // Apply styling to content (between markers)
+      const contentFrom = el.openMarker.to;
+      const contentTo = el.closeMarker.from;
+
+      if (contentFrom < contentTo) {
+        if (el.type === 'bold') {
+          decorations.push(
+            Decoration.mark({ class: 'cm-bold' }).range(contentFrom, contentTo)
+          );
+        } else if (el.type === 'italic') {
+          decorations.push(
+            Decoration.mark({ class: 'cm-italic' }).range(contentFrom, contentTo)
+          );
+        } else if (el.type === 'strikethrough') {
+          decorations.push(
+            Decoration.mark({ class: 'cm-strikethrough' }).range(contentFrom, contentTo)
+          );
+        } else if (el.type === 'code') {
+          decorations.push(
+            Decoration.mark({ class: 'cm-inline-code' }).range(contentFrom, contentTo)
+          );
+        } else if (el.type === 'link') {
+          decorations.push(
+            Decoration.mark({
+              class: 'cm-link',
+              attributes: { 'data-url': el.linkUrl || '' }
+            }).range(contentFrom, contentTo)
+          );
+        } else if (el.type === 'tag') {
+          decorations.push(
+            Decoration.mark({
+              class: 'cm-tag-link',
+              attributes: { 'data-tag': lineText.slice(el.from - line.from, el.to - line.from) }
+            }).range(el.from, el.to)
+          );
+        }
+      }
+
+      // Hide markers unless cursor is in this element
+      if (!cursorInElement && el.type !== 'tag') {
+        // Hide opening marker
+        if (el.openMarker.from < el.openMarker.to) {
+          decorations.push(
+            Decoration.mark({ class: 'cm-hidden-marker' }).range(el.openMarker.from, el.openMarker.to)
+          );
+        }
+        // Hide closing marker
+        if (el.closeMarker.from < el.closeMarker.to) {
+          decorations.push(
+            Decoration.mark({ class: 'cm-hidden-marker' }).range(el.closeMarker.from, el.closeMarker.to)
+          );
+        }
+      }
     }
   }
 
-  return Decoration.set(
-    decorations.map(d => d.decoration.range(d.from, d.to)),
-    true
-  );
+  // Sort decorations by from position (required by CodeMirror)
+  decorations.sort((a, b) => a.from - b.from);
+
+  return Decoration.set(decorations, true);
 }
 
-// Factory to create the live preview plugin with access to publish callback
+// ============================================================================
+// Live preview plugin
+// ============================================================================
+
 function createLivePreviewPlugin(
   onPublish?: (blogId: string, content: string) => void,
   blogs?: Array<{ id: string; name: string }>
@@ -399,23 +627,16 @@ function createLivePreviewPlugin(
   return ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
-      lastActiveLine: number = -1;
 
       constructor(view: EditorView) {
         this.decorations = createDecorations(view, onPublish, blogs);
-        this.lastActiveLine = view.state.field(activeLineField);
       }
 
       update(update: ViewUpdate) {
-        const currentActiveLine = update.state.field(activeLineField);
-        const activeLineChanged = currentActiveLine !== this.lastActiveLine;
-        this.lastActiveLine = currentActiveLine;
-
         if (
           update.docChanged ||
           update.selectionSet ||
-          update.viewportChanged ||
-          activeLineChanged
+          update.viewportChanged
         ) {
           this.decorations = createDecorations(update.view, onPublish, blogs);
         }
@@ -427,7 +648,10 @@ function createLivePreviewPlugin(
   );
 }
 
-// Editor theme
+// ============================================================================
+// Editor theme with CSS classes for styling
+// ============================================================================
+
 const editorTheme = EditorView.theme({
   '&': {
     fontSize: '14px',
@@ -454,11 +678,39 @@ const editorTheme = EditorView.theme({
   '.cm-activeLine': {
     backgroundColor: 'rgba(0, 0, 0, 0.03)'
   },
-  '.cm-rendered-markdown': {
-    display: 'inline'
-  },
   '.cm-scroller': {
     overflow: 'auto'
+  },
+
+  // Hidden markers
+  '.cm-hidden-marker': {
+    fontSize: '0',
+    width: '0',
+    display: 'inline-block',
+    overflow: 'hidden'
+  },
+
+  // Inline formatting styles
+  '.cm-bold': {
+    fontWeight: 'bold'
+  },
+  '.cm-italic': {
+    fontStyle: 'italic'
+  },
+  '.cm-strikethrough': {
+    textDecoration: 'line-through'
+  },
+  '.cm-inline-code': {
+    backgroundColor: '#e5e7eb',
+    padding: '0 4px',
+    borderRadius: '3px',
+    fontFamily: 'monospace',
+    fontSize: '0.9em'
+  },
+  '.cm-link': {
+    color: '#7c3aed',
+    textDecoration: 'underline',
+    cursor: 'pointer'
   },
   '.cm-tag-link': {
     color: '#7c3aed',
@@ -469,8 +721,92 @@ const editorTheme = EditorView.theme({
   },
   '.cm-tag-link:hover': {
     textDecorationColor: '#7c3aed'
+  },
+
+  // Header styles
+  '.cm-header': {
+    fontWeight: '700'
+  },
+  '.cm-header-1': {
+    fontSize: '1.75em',
+    lineHeight: '1.2'
+  },
+  '.cm-header-2': {
+    fontSize: '1.5em',
+    lineHeight: '1.25'
+  },
+  '.cm-header-3': {
+    fontSize: '1.25em',
+    lineHeight: '1.3'
+  },
+  '.cm-header-4': {
+    fontSize: '1.1em',
+    lineHeight: '1.4'
+  },
+  '.cm-header-5': {
+    fontSize: '1em',
+    lineHeight: '1.4'
+  },
+  '.cm-header-6': {
+    fontSize: '0.9em',
+    lineHeight: '1.4'
+  },
+
+  // List styles
+  '.cm-list-bullet::before': {
+    content: '"•"',
+    position: 'absolute',
+    left: '24px',
+    color: 'inherit'
+  },
+  '.cm-list-number': {
+    // Numbers handled by content
+  },
+  '.cm-list-task-unchecked::before': {
+    content: '"☐"',
+    position: 'absolute',
+    left: '24px'
+  },
+  '.cm-list-task-checked::before': {
+    content: '"☑"',
+    position: 'absolute',
+    left: '24px'
+  },
+
+  // Blockquote
+  '.cm-blockquote': {
+    borderLeft: '4px solid #9ca3af',
+    paddingLeft: '12px',
+    fontStyle: 'italic',
+    color: '#6b7280'
+  },
+
+  // Horizontal rule
+  '.cm-horizontal-rule': {
+    display: 'block',
+    textAlign: 'center',
+    overflow: 'hidden'
+  },
+  '.cm-horizontal-rule::before': {
+    content: '""',
+    display: 'inline-block',
+    width: '100%',
+    height: '1px',
+    backgroundColor: '#d1d5db',
+    verticalAlign: 'middle'
+  },
+
+  // Code block lines
+  '.cm-code-block-line': {
+    backgroundColor: '#f3f4f6',
+    fontFamily: 'monospace',
+    fontSize: '0.9em'
   }
 });
+
+// ============================================================================
+// Component props and helpers
+// ============================================================================
 
 interface LiveMarkdownEditorProps {
   initialContent: string;
@@ -486,12 +822,10 @@ function isInsideBlogBlock(doc: Text, pos: number): boolean {
   const line = doc.lineAt(pos);
   let openingFound = false;
 
-  // Search backwards for opening ===
   for (let i = line.number; i >= 1; i--) {
     const lineText = doc.line(i).text.trim();
     if (lineText === '===') {
       if (openingFound) {
-        // Found another === before, so we're outside
         return false;
       }
       openingFound = true;
@@ -500,15 +834,13 @@ function isInsideBlogBlock(doc: Text, pos: number): boolean {
 
   if (!openingFound) return false;
 
-  // Search forwards for closing ===
   for (let i = line.number; i <= doc.lines; i++) {
     const lineText = doc.line(i).text.trim();
     if (lineText === '===' && i !== line.number) {
-      return true; // Found closing, we're inside
+      return true;
     }
   }
 
-  // No closing found, still consider inside (block not closed yet)
   return true;
 }
 
@@ -518,7 +850,6 @@ function findBlogBlockBoundaries(doc: Text, pos: number): { start: number; end: 
   let startLine = -1;
   let endLine = -1;
 
-  // Search backwards for opening ===
   for (let i = line.number; i >= 1; i--) {
     const lineText = doc.line(i).text.trim();
     if (lineText === '===') {
@@ -529,7 +860,6 @@ function findBlogBlockBoundaries(doc: Text, pos: number): { start: number; end: 
 
   if (startLine === -1) return null;
 
-  // Search forwards for closing ===
   for (let i = line.number; i <= doc.lines; i++) {
     const lineText = doc.line(i).text.trim();
     if (lineText === '===' && i !== startLine) {
@@ -543,6 +873,10 @@ function findBlogBlockBoundaries(doc: Text, pos: number): { start: number; end: 
   return { start: startLine, end: endLine };
 }
 
+// ============================================================================
+// Main component
+// ============================================================================
+
 export const LiveMarkdownEditor: React.FC<LiveMarkdownEditorProps> = ({
   initialContent,
   filePath,
@@ -555,10 +889,8 @@ export const LiveMarkdownEditor: React.FC<LiveMarkdownEditorProps> = ({
   const viewRef = useRef<EditorView | null>(null);
   const contentRef = useRef(initialContent);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Track the last initialContent we synced from, to detect actual external changes
   const lastInitialContentRef = useRef(initialContent);
 
-  // Store blogs in a ref for use in extensions
   const blogsRef = useRef(blogs);
   blogsRef.current = blogs;
 
@@ -577,25 +909,20 @@ tags: [""]
 
   // Blog autocomplete source
   const blogCompletionSource = useCallback((context: CompletionContext) => {
-    // Check if we're in a blog: "" field
     const line = context.state.doc.lineAt(context.pos);
     const lineText = line.text;
 
-    // Match blog: "..." pattern - cursor should be between quotes
     const blogMatch = lineText.match(/^blog:\s*"([^"]*)"?/);
     if (!blogMatch) return null;
 
-    // Find quote positions
     const firstQuoteIndex = lineText.indexOf('"');
     const lastQuoteIndex = lineText.lastIndexOf('"');
     const cursorInLine = context.pos - line.from;
 
-    // Check if cursor is between the quotes
     if (cursorInLine <= firstQuoteIndex || (lastQuoteIndex > firstQuoteIndex && cursorInLine > lastQuoteIndex)) {
       return null;
     }
 
-    // Only provide completions inside blog block
     if (!isInsideBlogBlock(context.state.doc, context.pos)) return null;
 
     const from = line.from + firstQuoteIndex + 1;
@@ -664,19 +991,16 @@ tags: [""]
           const pos = view.state.selection.main.head;
           const doc = view.state.doc;
 
-          // Check if we're inside a blog block
           if (!isInsideBlogBlock(doc, pos)) {
-            return false; // Let default Tab behavior happen
+            return false;
           }
 
           const line = doc.lineAt(pos);
           const lineText = line.text;
 
-          // Determine which field we're in and where to jump
           const boundaries = findBlogBlockBoundaries(doc, pos);
           if (!boundaries) return false;
 
-          // Find all frontmatter field lines
           let blogLine = -1, titleLine = -1, descLine = -1, tagsLine = -1, closingDashLine = -1;
           for (let i = boundaries.start + 1; i < boundaries.end; i++) {
             const text = doc.line(i).text;
@@ -687,7 +1011,6 @@ tags: [""]
             else if (text.trim() === '---' && i > boundaries.start + 1) closingDashLine = i;
           }
 
-          // Determine current field and next target
           let targetLine = -1;
           if (lineText.startsWith('blog:')) {
             targetLine = titleLine;
@@ -696,7 +1019,6 @@ tags: [""]
           } else if (lineText.startsWith('description:')) {
             targetLine = tagsLine;
           } else if (lineText.startsWith('tags:')) {
-            // Jump to line after closing ---
             if (closingDashLine !== -1 && closingDashLine + 1 <= doc.lines) {
               const afterClosing = doc.line(closingDashLine + 1);
               view.dispatch({
@@ -710,7 +1032,6 @@ tags: [""]
           if (targetLine !== -1) {
             const targetLineObj = doc.line(targetLine);
             const targetText = targetLineObj.text;
-            // Find position inside quotes
             const quoteStart = targetText.indexOf('"');
             const quoteEnd = targetText.lastIndexOf('"');
             if (quoteStart !== -1 && quoteEnd > quoteStart) {
@@ -738,16 +1059,10 @@ tags: [""]
           const lineText = line.text.trim();
 
           if (lineText === '===') {
-            // Insert the blog block template
             const template = getBlogBlockTemplate();
             const insertPos = line.to;
 
-            // Insert template + closing ===
             const fullInsert = '\n' + template + '===';
-
-            // Calculate cursor position inside blog: ""
-            // Template starts with ---\nblog: ""
-            // We want cursor between the quotes
             const blogFieldOffset = template.indexOf('blog: "') + 7;
 
             view.dispatch({
@@ -757,7 +1072,7 @@ tags: [""]
 
             return true;
           }
-          return false; // Let default Enter behavior happen
+          return false;
         }
       }
     ]);
@@ -766,18 +1081,12 @@ tags: [""]
       if (update.docChanged) {
         scheduleSave();
       }
-      // Update active line on selection change
       if (update.selectionSet) {
         const pos = update.state.selection.main.head;
         const line = update.state.doc.lineAt(pos);
-        update.view.dispatch({
-          effects: setActiveLine.of(line.number)
-        });
 
-        // Auto-trigger completion when cursor enters blog field
         const lineText = line.text;
         if (lineText.match(/^blog:\s*"/) && isInsideBlogBlock(update.state.doc, pos)) {
-          // Small delay to let the cursor settle
           setTimeout(() => {
             startCompletion(update.view);
           }, 50);
@@ -788,9 +1097,9 @@ tags: [""]
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
-        activeLineField,
+        cursorPositionField,
         history(),
-        blogBlockKeymap,  // Must be before defaultKeymap to intercept Enter
+        blogBlockKeymap,
         tabKeymap,
         keymap.of([...defaultKeymap, ...historyKeymap]),
         saveKeymap,
@@ -825,8 +1134,6 @@ tags: [""]
 
   // Update content when file changes externally
   useEffect(() => {
-    // Only sync if initialContent actually changed from its previous value (external change)
-    // This prevents reverting internal changes (like inserting published: true)
     if (initialContent !== lastInitialContentRef.current) {
       lastInitialContentRef.current = initialContent;
 
@@ -858,7 +1165,6 @@ tags: [""]
 
       const doc = viewRef.current.state.doc;
 
-      // Find the blog block boundaries
       const line = doc.line(blockLine);
       const boundaries = findBlogBlockBoundaries(doc, line.from);
       if (!boundaries) {
@@ -866,7 +1172,6 @@ tags: [""]
         return;
       }
 
-      // Extract content from the block
       let blockContent = '';
       let blogName = '';
       let hasPublished = false;
@@ -880,7 +1185,6 @@ tags: [""]
           hasPublished = true;
         }
 
-        // Only add non-blog, non-published lines to content
         if (!blogMatch && !blockLineText.match(/^published:/)) {
           blockContent += blockLineText + '\n';
         }
@@ -896,21 +1200,16 @@ tags: [""]
         return;
       }
 
-      // Find the blog by name
       const blog = blogsRef.current.find(b => b.name === blogName);
       if (!blog) {
         alert(`Blog "${blogName}" not found in settings. Please check your blog configuration.`);
         return;
       }
 
-      // Publish!
       const success = await onPublishBlogBlock(blog.id, blockContent.trim());
 
       if (success && viewRef.current) {
-        // Get fresh document reference after async operation
         const freshDoc = viewRef.current.state.doc;
-
-        // Re-find the closing --- line in the fresh document
         const freshBoundaries = findBlogBlockBoundaries(freshDoc, freshDoc.line(blockLine).from);
 
         if (freshBoundaries) {
@@ -928,7 +1227,6 @@ tags: [""]
           }
 
           if (freshClosingDashLine !== -1) {
-            // Insert published: true before the closing ---
             const closingLine = freshDoc.line(freshClosingDashLine);
             const insertPos = closingLine.from;
             const insertText = 'published: true\n';
@@ -937,10 +1235,8 @@ tags: [""]
               changes: { from: insertPos, to: insertPos, insert: insertText }
             });
 
-            // Update contentRef to prevent external sync from reverting
             contentRef.current = viewRef.current.state.doc.toString();
 
-            // Trigger save immediately (not debounced) to persist the change
             const newContent = viewRef.current.state.doc.toString();
             onSave(newContent);
           }
@@ -954,7 +1250,7 @@ tags: [""]
     };
   }, [onPublishBlogBlock, scheduleSave]);
 
-  // Handle clicks on tags
+  // Handle clicks on tags and links
   const handleClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
 
@@ -964,9 +1260,18 @@ tags: [""]
       e.stopPropagation();
       const tag = target.dataset.tag;
       if (tag && onTagClick) {
-        // metaKey is Cmd on Mac, ctrlKey on Windows/Linux
         const newTab = e.metaKey || e.ctrlKey;
         onTagClick(tag, newTab);
+      }
+    }
+
+    // Handle link clicks
+    if (target.classList.contains('cm-link')) {
+      const url = target.dataset.url;
+      if (url && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(url, '_blank');
       }
     }
   }, [onTagClick]);

@@ -38,6 +38,7 @@ import { PublishDialog } from './components/PublishDialog';
 import { PublishProgressPopup } from './components/PublishProgressPopup';
 import { SettingsPage } from './components/SettingsPage';
 import { CreateFileDialog } from './components/CreateFileDialog';
+import logoLeftFacing from './assets/logo-left-facing.png';
 
 type SidebarTab = 'files' | 'tags' | 'daily';
 type EditorViewMode = 'markdown' | 'editor' | 'split' | 'preview';
@@ -1076,9 +1077,7 @@ const App: React.FC = () => {
 
         {/* Right side controls */}
         <div className="flex items-center pr-3 gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          {/* <button className="p-1 hover:bg-[var(--sidebar-hover)] rounded" style={{ color: 'var(--sidebar-icon)' }}>
-            <ChevronDown size={16} strokeWidth={1.5} />
-          </button> */}
+          <img src={logoLeftFacing} alt="Xun" style={{ height: '40px', width: 'auto', marginRight: '12px', marginTop: '1px' }} />
         </div>
       </div>
 
