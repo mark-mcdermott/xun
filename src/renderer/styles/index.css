@@ -2,35 +2,261 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme colors - Light mode (default) - Obsidian-style */
+/* ============================================
+   CSS Variables - Light Mode (default)
+   Using semantic/locational names for theming
+   ============================================ */
 :root {
-  --color-bg: #ffffff;
-  --color-bg-secondary: #fafafa;
-  --color-bg-tertiary: #f5f5f5;
-  --color-surface: #f5f5f5;
-  --color-border: #e0e0e0;
-  --color-border-light: #e0e0e0;
-  --color-text: #1a1a1a;
-  --color-text-secondary: #5c5c5c;
-  --color-text-muted: #999999;
-  --color-hover: #f5f5f5;
-  --color-active: #ebebeb;
+  /* Base backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f6f6;
+  --bg-tertiary: #f5f5f5;
+
+  /* Sidebar */
+  --sidebar-bg: #f6f6f6;
+  --sidebar-hover: #e8e8e8;
+  --sidebar-icon: #737373;
+  --sidebar-icon-muted: #b6b6b6;
+  --sidebar-text: #5c5c5c;
+
+  /* Tab bar */
+  --tab-bar-bg: #f6f6f6;
+  --tab-active-bg: #ffffff;
+  --tab-inactive-bg: #f6f6f6;
+  --tab-active-text: #4a4a4a;
+  --tab-inactive-text: #6a6a6a;
+  --tab-close-hover: #e0e0e0;
+
+  /* Borders */
+  --border-primary: #e0e0e0;
+  --border-light: #e5e7eb;
+  --border-input: #e4e4e7;
+
+  /* Text colors */
+  --text-primary: #1a1a1a;
+  --text-secondary: #5c5c5c;
+  --text-muted: #999999;
+  --text-placeholder: #999999;
+  --text-icon: #737373;
+
+  /* Interactive states */
+  --hover-bg: #e8e8e8;
+  --hover-bg-light: #f0f0f0;
+  --active-bg: #ebebeb;
+  --drag-over-bg: #dbeafe;
+
+  /* Status bar */
+  --status-bar-bg: #f6f6f6;
+  --status-bar-text: #5c5c5c;
+
+  /* Indent guides (file tree) */
+  --indent-guide: #e0e0e0;
+
+  /* Breadcrumb */
+  --breadcrumb-text: #4a4a4a;
+  --breadcrumb-separator: #999999;
+
+  /* Dialog/Modal */
+  --dialog-bg: #ffffff;
+  --dialog-backdrop: rgba(246, 246, 246, 0.25);
+  --dialog-heading: #18181b;
+  --dialog-text: #71717a;
+  --dialog-label: #71717a;
+  --dialog-hover: #f0f0f2;
+
+  /* Buttons */
+  --btn-primary-bg: #3f0c8d;
+  --btn-primary-bg-hover: #8017f5;
+  --btn-primary-text: #ffffff;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-text: #52525b;
+  --btn-secondary-border: #e4e4e7;
+  --btn-secondary-hover: #f5f5f5;
+  --btn-danger-bg: #ef4444;
+  --btn-danger-bg-hover: #dc2626;
+  --btn-danger-text: #ffffff;
+
+  /* Accent/Brand colors */
+  --accent-primary: #7c3aed;
+  --accent-primary-hover: #6d28d9;
+  --accent-secondary: #14b8a6;
+
+  /* Status colors */
+  --status-success: #22c55e;
+  --status-success-dark: #16a34a;
+  --status-error: #ef4444;
+  --status-error-dark: #dc2626;
+  --status-error-bg: rgba(239, 68, 68, 0.1);
+  --status-error-border: rgba(239, 68, 68, 0.3);
+
+  /* Editor/Markdown */
+  --editor-heading: #3f0c8d;
+  --editor-link: #7c3aed;
+  --editor-link-hover: #a838ff;
+  --editor-blockquote-border: #9ca3af;
+  --editor-blockquote-text: #6b7280;
+  --editor-code-bg: #f3f4f6;
+  --editor-code-border: #e5e7eb;
+  --editor-divider: #d1d5db;
+
+  /* Input fields */
+  --input-bg: #ffffff;
+  --input-border: #e4e4e7;
+  --input-border-focus: #737373;
+  --input-text: #1a1a1a;
+
+  /* Focus ring */
+  --focus-ring: #737373;
+  --focus-ring-accent: rgba(124, 58, 237, 0.1);
+
+  /* Selection */
+  --selection-bg: rgba(115, 115, 115, 0.3);
+
+  /* Scrollbar */
+  --scrollbar-thumb: #e0e0e0;
+  --scrollbar-thumb-hover: #999999;
+
+  /* Progress bar */
+  --progress-bg: #f4f4f5;
+  --progress-fill: #7c3aed;
+
+  /* Resize handle */
+  --resize-handle: rgba(96, 165, 250, 0.5);
+
+  /* Legacy variables for compatibility */
+  --color-bg: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+  --color-surface: var(--bg-tertiary);
+  --color-border: var(--border-primary);
+  --color-border-light: var(--border-primary);
+  --color-text: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-hover: var(--hover-bg-light);
+  --color-active: var(--active-bg);
 }
 
-/* Theme colors - Dark mode */
+/* ============================================
+   CSS Variables - Dark Mode
+   ============================================ */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #1e1e1e;
-    --color-bg-secondary: #1e1e1e;
-    --color-bg-tertiary: #252526;
-    --color-surface: #2d2d2d;
-    --color-border: #333333;
-    --color-border-light: #404040;
-    --color-text: #dcddde;
-    --color-text-secondary: #a0a0a0;
-    --color-text-muted: #666666;
-    --color-hover: #2a2a2a;
-    --color-active: #333333;
+    /* Base backgrounds */
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #252526;
+    --bg-tertiary: #2d2d2d;
+
+    /* Sidebar */
+    --sidebar-bg: #252526;
+    --sidebar-hover: #3c3c3c;
+    --sidebar-icon: #a0a0a0;
+    --sidebar-icon-muted: #6e6e6e;
+    --sidebar-text: #a0a0a0;
+
+    /* Tab bar */
+    --tab-bar-bg: #252526;
+    --tab-active-bg: #1e1e1e;
+    --tab-inactive-bg: #252526;
+    --tab-active-text: #dcddde;
+    --tab-inactive-text: #808080;
+    --tab-close-hover: #3c3c3c;
+
+    /* Borders */
+    --border-primary: #404040;
+    --border-light: #333333;
+    --border-input: #404040;
+
+    /* Text colors */
+    --text-primary: #dcddde;
+    --text-secondary: #a0a0a0;
+    --text-muted: #666666;
+    --text-placeholder: #666666;
+    --text-icon: #a0a0a0;
+
+    /* Interactive states */
+    --hover-bg: #3c3c3c;
+    --hover-bg-light: #2a2a2a;
+    --active-bg: #333333;
+    --drag-over-bg: #1e3a5f;
+
+    /* Status bar */
+    --status-bar-bg: #252526;
+    --status-bar-text: #a0a0a0;
+
+    /* Indent guides (file tree) */
+    --indent-guide: #404040;
+
+    /* Breadcrumb */
+    --breadcrumb-text: #dcddde;
+    --breadcrumb-separator: #666666;
+
+    /* Dialog/Modal */
+    --dialog-bg: #2d2d2d;
+    --dialog-backdrop: rgba(0, 0, 0, 0.5);
+    --dialog-heading: #dcddde;
+    --dialog-text: #a0a0a0;
+    --dialog-label: #a0a0a0;
+    --dialog-hover: #3c3c3c;
+
+    /* Buttons */
+    --btn-primary-bg: #7c3aed;
+    --btn-primary-bg-hover: #8b5cf6;
+    --btn-primary-text: #ffffff;
+    --btn-secondary-bg: #2d2d2d;
+    --btn-secondary-text: #dcddde;
+    --btn-secondary-border: #404040;
+    --btn-secondary-hover: #3c3c3c;
+    --btn-danger-bg: #dc2626;
+    --btn-danger-bg-hover: #ef4444;
+    --btn-danger-text: #ffffff;
+
+    /* Accent/Brand colors */
+    --accent-primary: #8b5cf6;
+    --accent-primary-hover: #a78bfa;
+    --accent-secondary: #2dd4bf;
+
+    /* Status colors */
+    --status-success: #22c55e;
+    --status-success-dark: #16a34a;
+    --status-error: #ef4444;
+    --status-error-dark: #dc2626;
+    --status-error-bg: rgba(239, 68, 68, 0.2);
+    --status-error-border: rgba(239, 68, 68, 0.4);
+
+    /* Editor/Markdown */
+    --editor-heading: #8b5cf6;
+    --editor-link: #8b5cf6;
+    --editor-link-hover: #a78bfa;
+    --editor-blockquote-border: #4b5563;
+    --editor-blockquote-text: #9ca3af;
+    --editor-code-bg: #2d2d2d;
+    --editor-code-border: #404040;
+    --editor-divider: #404040;
+
+    /* Input fields */
+    --input-bg: #1e1e1e;
+    --input-border: #404040;
+    --input-border-focus: #8b5cf6;
+    --input-text: #dcddde;
+
+    /* Focus ring */
+    --focus-ring: #8b5cf6;
+    --focus-ring-accent: rgba(139, 92, 246, 0.2);
+
+    /* Selection */
+    --selection-bg: rgba(139, 92, 246, 0.3);
+
+    /* Scrollbar */
+    --scrollbar-thumb: #404040;
+    --scrollbar-thumb-hover: #666666;
+
+    /* Progress bar */
+    --progress-bg: #2d2d2d;
+    --progress-fill: #8b5cf6;
+
+    /* Resize handle */
+    --resize-handle: rgba(139, 92, 246, 0.5);
   }
 }
 
@@ -42,8 +268,8 @@ body {
     'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 code {
@@ -68,23 +294,23 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-light);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Selection styling */
 ::selection {
-  background-color: rgba(115, 115, 115, 0.3);
-  color: var(--color-text);
+  background-color: var(--selection-bg);
+  color: var(--text-primary);
 }
 
 /* Focus ring styling - only for keyboard navigation */
 *:focus-visible {
-  outline: 2px solid #737373;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -113,29 +339,29 @@ button:not([class*="bg-"]) {
 input[type="text"],
 input[type="password"],
 select {
-  color: var(--color-text);
-  border-color: var(--color-border);
+  color: var(--input-text);
+  border-color: var(--input-border);
 }
 
 input::placeholder {
-  color: var(--color-text-muted) !important;
+  color: var(--text-placeholder) !important;
 }
 
 /* Main editor textarea */
 textarea {
-  background-color: var(--color-bg) !important;
-  color: var(--color-text) !important;
-  caret-color: #737373;
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
   border: none !important;
 }
 
 /* Remove cyan scrollbar from textarea */
 textarea::-webkit-scrollbar-thumb {
-  background: var(--color-border-light);
+  background: var(--scrollbar-thumb);
 }
 
 textarea::placeholder {
-  color: var(--color-text-muted) !important;
+  color: var(--text-placeholder) !important;
 }
 
 /* Remove focus outline, use border instead */
@@ -143,9 +369,14 @@ input:focus, select:focus, textarea:focus {
   outline: none;
 }
 
+/* CodeMirror cursor color */
+.cm-cursor {
+  border-left-color: var(--text-primary) !important;
+}
+
 /* Force sidebar border colors */
 .sidebar-border {
-  border-right: 1px solid #e0e0e0 !important;
+  border-right: 1px solid var(--border-primary) !important;
 }
 
 /* Hide scrollbar in sidebar but keep functionality */
@@ -156,5 +387,5 @@ input:focus, select:focus, textarea:focus {
 
 /* Override any default border colors */
 * {
-  border-color: #e0e0e0;
+  border-color: var(--border-primary);
 }

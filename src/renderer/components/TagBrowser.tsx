@@ -21,19 +21,16 @@ export const TagBrowser: React.FC<TagBrowserProps> = ({ tags, selectedTag, onTag
         <div
           key={tag}
           onClick={() => onTagClick(tag)}
-          className={`flex items-center gap-1 pr-2 cursor-pointer ${
-            selectedTag === tag
-              ? 'bg-[#e8e8e8]'
-              : 'hover:bg-[#e8e8e8]'
-          }`}
+          className={`flex items-center gap-1 pr-2 cursor-pointer hover:bg-[var(--sidebar-hover)]`}
           style={{
             fontSize: '13.75px',
-            color: selectedTag === tag ? '#3a3a3a' : '#5c5c5c',
+            color: selectedTag === tag ? 'var(--text-primary)' : 'var(--sidebar-text)',
             lineHeight: '2',
-            paddingLeft: '8px'
+            paddingLeft: '8px',
+            backgroundColor: selectedTag === tag ? 'var(--sidebar-hover)' : 'transparent'
           }}
         >
-          <span style={{ color: '#5c5c5c' }}>#</span>
+          <span style={{ color: 'var(--sidebar-text)' }}>#</span>
           <span className="truncate">
             {tag.substring(1)}
           </span>

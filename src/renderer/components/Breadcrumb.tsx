@@ -20,12 +20,12 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate }) => {
   });
 
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto" style={{ fontSize: '13.75px', color: '#4a4a4a' }}>
+    <div className="flex items-center gap-1.5 overflow-x-auto" style={{ fontSize: '13.75px', color: 'var(--breadcrumb-text)' }}>
       {/* Home/Vault icon */}
       <button
         onClick={() => onNavigate?.('')}
         className="flex items-center transition-colors flex-shrink-0"
-        style={{ color: '#4a4a4a' }}
+        style={{ color: 'var(--breadcrumb-text)' }}
         title="Vault root"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,16 +36,16 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate }) => {
       {/* Path segments */}
       {pathSegments.map((segment, index) => (
         <React.Fragment key={segment.path}>
-          {index > 0 && <span className="flex-shrink-0" style={{ color: '#4a4a4a', marginRight: '4px' }}>/</span>}
+          {index > 0 && <span className="flex-shrink-0" style={{ color: 'var(--breadcrumb-separator)', marginRight: '4px' }}>/</span>}
           {segment.isLast ? (
-            <span className="truncate" style={{ color: '#4a4a4a' }}>
+            <span className="truncate" style={{ color: 'var(--breadcrumb-text)', marginLeft: '1px' }}>
               {segment.name}
             </span>
           ) : (
             <button
               onClick={() => onNavigate?.(segment.path)}
               className="transition-colors truncate"
-              style={{ color: '#4a4a4a' }}
+              style={{ color: 'var(--breadcrumb-text)' }}
             >
               {segment.name}
             </button>

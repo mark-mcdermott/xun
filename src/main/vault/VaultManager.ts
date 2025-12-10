@@ -193,7 +193,7 @@ export class VaultManager {
   }
 
   /**
-   * Delete a file
+   * Delete a file or folder
    */
   async deleteFile(relativePath: string): Promise<void> {
     if (!this.vaultPath) {
@@ -201,7 +201,13 @@ export class VaultManager {
     }
 
     const fullPath = join(this.vaultPath, relativePath);
-    await fs.unlink(fullPath);
+    const stats = await fs.stat(fullPath);
+
+    if (stats.isDirectory()) {
+      await fs.rm(fullPath, { recursive: true });
+    } else {
+      await fs.unlink(fullPath);
+    }
   }
 
   /**
@@ -217,10 +223,102 @@ export class VaultManager {
   }
 
   /**
+   * Move a file or folder to a new location
+   * @param sourcePath - Relative path of the file/folder to move
+   * @param destFolder - Relative path of the destination folder
+   * @returns The new relative path of the moved item
+   */
+  async moveFile(sourcePath: string, destFolder: string): Promise<string> {
+    if (!this.vaultPath) {
+      throw new Error('Vault not initialized');
+    }
+
+    const sourceFullPath = join(this.vaultPath, sourcePath);
+    const sourceName = parse(sourcePath).base;
+    const destFullPath = join(this.vaultPath, destFolder, sourceName);
+    const newRelativePath = join(destFolder, sourceName);
+
+    // Check source exists
+    try {
+      await fs.access(sourceFullPath);
+    } catch {
+      throw new Error(`Source does not exist: ${sourcePath}`);
+    }
+
+    // Check destination folder exists
+    const destFolderFullPath = join(this.vaultPath, destFolder);
+    try {
+      await fs.access(destFolderFullPath);
+    } catch {
+      throw new Error(`Destination folder does not exist: ${destFolder}`);
+    }
+
+    // Check destination doesn't already have a file with that name
+    try {
+      await fs.access(destFullPath);
+      throw new Error(`File already exists at destination: ${newRelativePath}`);
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        throw err;
+      }
+    }
+
+    await fs.rename(sourceFullPath, destFullPath);
+    return newRelativePath;
+  }
+
+  /**
+   * Rename a file or folder
+   * @param oldPath - Current relative path
+   * @param newName - New name (just the filename/foldername, not path)
+   * @returns The new relative path
+   */
+  async renameFile(oldPath: string, newName: string): Promise<string> {
+    if (!this.vaultPath) {
+      throw new Error('Vault not initialized');
+    }
+
+    const oldFullPath = join(this.vaultPath, oldPath);
+    const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/')) || '';
+    const newRelativePath = parentDir ? `${parentDir}/${newName}` : newName;
+    const newFullPath = join(this.vaultPath, newRelativePath);
+
+    // Check source exists
+    try {
+      await fs.access(oldFullPath);
+    } catch {
+      throw new Error(`Source does not exist: ${oldPath}`);
+    }
+
+    // Check destination doesn't already exist
+    try {
+      await fs.access(newFullPath);
+      throw new Error(`File already exists: ${newRelativePath}`);
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        throw err;
+      }
+    }
+
+    await fs.rename(oldFullPath, newFullPath);
+    return newRelativePath;
+  }
+
+  /**
+   * Get local date as YYYY-MM-DD string
+   */
+  private getLocalDateString(date: Date = new Date()): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * Get today's daily note path
    */
   getTodayNotePath(): string {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = this.getLocalDateString();
     return join(DEFAULT_VAULT_STRUCTURE.dailyNotes, `${today}.md`);
   }
 
@@ -236,7 +334,7 @@ export class VaultManager {
     } catch (err: any) {
       if (err.code === 'ENOENT') {
         // Create new daily note
-        const today = new Date().toISOString().split('T')[0];
+        const today = this.getLocalDateString();
         const content = `# ${today}\n\n`;
         await this.createFile(notePath, content);
         return { path: notePath, content, isNew: true };

@@ -14,6 +14,7 @@ const getIconPath = (): string => {
 import { registerVaultHandlers } from './ipc/vaultHandlers';
 import { registerTagHandlers, setTagManager } from './ipc/tagHandlers';
 import { registerPublishHandlers, initializePublishManagers, setPublishTagManager } from './ipc/publishHandlers';
+import { registerContextMenuHandlers } from './ipc/contextMenuHandlers';
 import { vaultManager } from './vault/VaultManager';
 import { TagManager } from './vault/TagManager';
 
@@ -66,6 +67,7 @@ const tagManager = new TagManager(vaultManager);
 registerVaultHandlers();
 registerTagHandlers();
 registerPublishHandlers();
+registerContextMenuHandlers();
 setTagManager(tagManager);
 setPublishTagManager(tagManager);
 

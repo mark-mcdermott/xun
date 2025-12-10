@@ -28,6 +28,8 @@ export interface ElectronAPI {
     createFile: (path: string, content?: string) => Promise<VaultResponse>;
     deleteFile: (path: string) => Promise<VaultResponse>;
     createFolder: (path: string) => Promise<VaultResponse>;
+    moveFile: (sourcePath: string, destFolder: string) => Promise<VaultResponse<{ newPath: string }>>;
+    renameFile: (oldPath: string, newName: string) => Promise<VaultResponse<{ newPath: string }>>;
     getTodayNote: () => Promise<
       VaultResponse<{ path: string; content: string; isNew: boolean }>
     >;
@@ -49,6 +51,13 @@ export interface ElectronAPI {
     deleteContent: (tag: string) => Promise<
       VaultResponse<{ filesModified: string[]; sectionsDeleted: number }>
     >;
+  };
+
+  // Context menu operations
+  contextMenu: {
+    showFileMenu: (filePath: string) => Promise<{ action: string } | null>;
+    showFolderMenu: (folderPath: string) => Promise<{ action: string } | null>;
+    showSidebarMenu: () => Promise<{ action: string } | null>;
   };
 
   // Publishing operations
@@ -82,6 +91,10 @@ const api: ElectronAPI = {
       ipcRenderer.invoke('vault:create-file', path, content),
     deleteFile: (path: string) => ipcRenderer.invoke('vault:delete-file', path),
     createFolder: (path: string) => ipcRenderer.invoke('vault:create-folder', path),
+    moveFile: (sourcePath: string, destFolder: string) =>
+      ipcRenderer.invoke('vault:move-file', sourcePath, destFolder),
+    renameFile: (oldPath: string, newName: string) =>
+      ipcRenderer.invoke('vault:rename-file', oldPath, newName),
     getTodayNote: () => ipcRenderer.invoke('vault:get-today-note'),
     getDailyNote: (date: string) => ipcRenderer.invoke('vault:get-daily-note', date),
     getDailyNoteDates: () => ipcRenderer.invoke('vault:get-daily-note-dates')
@@ -94,6 +107,12 @@ const api: ElectronAPI = {
     extract: (content: string) => ipcRenderer.invoke('tags:extract', content),
     getStats: (tag: string) => ipcRenderer.invoke('tags:get-stats', tag),
     deleteContent: (tag: string) => ipcRenderer.invoke('tags:delete-content', tag)
+  },
+
+  contextMenu: {
+    showFileMenu: (filePath: string) => ipcRenderer.invoke('context-menu:show-file', filePath),
+    showFolderMenu: (folderPath: string) => ipcRenderer.invoke('context-menu:show-folder', folderPath),
+    showSidebarMenu: () => ipcRenderer.invoke('context-menu:show-sidebar')
   },
 
   publish: {

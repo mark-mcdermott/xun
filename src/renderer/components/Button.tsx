@@ -21,23 +21,23 @@ export const Button: React.FC<ButtonProps> = ({
     fontWeight: 700,
     borderRadius: '8px',
     boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)',
-    border: '1px solid #e4e4e7',
+    border: '1px solid var(--btn-secondary-border)',
   };
 
   const variantStyles: Record<string, React.CSSProperties> = {
     primary: {
-      color: '#ffffff',
-      backgroundColor: '#3f0c8d',
+      color: 'var(--btn-primary-text)',
+      backgroundColor: 'var(--btn-primary-bg)',
     },
     secondary: {
-      color: '#52525b',
-      backgroundColor: '#ffffff',
-      border: '1px solid #e4e4e7',
+      color: 'var(--btn-secondary-text)',
+      backgroundColor: 'var(--btn-secondary-bg)',
+      border: '1px solid var(--btn-secondary-border)',
     },
   };
 
-  const hoverBg = variant === 'primary' ? '#8017f5' : '#f0f0f2';
-  const defaultBg = variant === 'primary' ? '#3f0c8d' : '#ffffff';
+  const hoverBg = variant === 'primary' ? 'var(--btn-primary-bg-hover)' : 'var(--btn-secondary-hover)';
+  const defaultBg = variant === 'primary' ? 'var(--btn-primary-bg)' : 'var(--btn-secondary-bg)';
 
   return (
     <button

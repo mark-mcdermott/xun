@@ -975,7 +975,7 @@ tags: [""]
     <div
       ref={containerRef}
       className="h-full w-full overflow-hidden"
-      style={{ backgroundColor: '#ffffff' }}
+      style={{ backgroundColor: 'var(--bg-primary)' }}
       onClick={handleClick}
     />
   );

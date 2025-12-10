@@ -13,6 +13,8 @@ interface UseVaultReturn {
   createFile: (path: string, content?: string) => Promise<void>;
   deleteFile: (path: string) => Promise<void>;
   createFolder: (path: string) => Promise<void>;
+  moveFile: (sourcePath: string, destFolder: string) => Promise<string>;
+  renameFile: (oldPath: string, newName: string) => Promise<string>;
   getTodayNote: () => Promise<{ path: string; content: string; isNew: boolean }>;
   getDailyNote: (date: string) => Promise<{ path: string; content: string; isNew: boolean }>;
   getDailyNoteDates: () => Promise<string[]>;
@@ -118,6 +120,32 @@ export const useVault = (): UseVaultReturn => {
     [refreshFileTree]
   );
 
+  // Move file or folder
+  const moveFile = useCallback(
+    async (sourcePath: string, destFolder: string): Promise<string> => {
+      const result = await window.electronAPI.vault.moveFile(sourcePath, destFolder);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to move file');
+      }
+      await refreshFileTree();
+      return result.newPath;
+    },
+    [refreshFileTree]
+  );
+
+  // Rename file or folder
+  const renameFile = useCallback(
+    async (oldPath: string, newName: string): Promise<string> => {
+      const result = await window.electronAPI.vault.renameFile(oldPath, newName);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to rename file');
+      }
+      await refreshFileTree();
+      return result.newPath;
+    },
+    [refreshFileTree]
+  );
+
   // Get today's note
   const getTodayNote = useCallback(async () => {
     const result = await window.electronAPI.vault.getTodayNote();
@@ -182,6 +210,8 @@ export const useVault = (): UseVaultReturn => {
     createFile,
     deleteFile,
     createFolder,
+    moveFile,
+    renameFile,
     getTodayNote,
     getDailyNote,
     getDailyNoteDates

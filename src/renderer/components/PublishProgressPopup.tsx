@@ -122,7 +122,7 @@ export const PublishProgressPopup: React.FC<PublishProgressPopupProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(246, 246, 246, 0.25)',
+        backgroundColor: 'var(--dialog-backdrop)',
         zIndex: 9999
       }}
       onClick={() => canClose && onClose()}
@@ -131,14 +131,14 @@ export const PublishProgressPopup: React.FC<PublishProgressPopupProps> = ({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '400px',
-          backgroundColor: '#ffffff',
-          border: '1px solid #e5e7eb',
+          backgroundColor: 'var(--dialog-bg)',
+          border: '1px solid var(--border-light)',
           boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)',
           padding: '24px',
           borderRadius: '12px'
         }}
       >
-        <h2 className="font-semibold mb-4" style={{ fontSize: '18px', color: '#18181b' }}>
+        <h2 className="font-semibold mb-4" style={{ fontSize: '18px', color: 'var(--dialog-heading)' }}>
           Publishing Blog Post
         </h2>
 
@@ -146,7 +146,7 @@ export const PublishProgressPopup: React.FC<PublishProgressPopupProps> = ({
           {/* Progress bar */}
           <div
             className="w-full rounded-full overflow-hidden"
-            style={{ backgroundColor: '#e5e7eb', height: '8px' }}
+            style={{ backgroundColor: 'var(--progress-bg)', height: '8px' }}
           >
             <div
               className="rounded-full"
@@ -154,7 +154,7 @@ export const PublishProgressPopup: React.FC<PublishProgressPopupProps> = ({
                 width: `${Math.max(displayProgress, 2)}%`,
                 height: '8px',
                 backgroundColor:
-                  status === 'failed' ? '#ef4444' : status === 'completed' ? '#22c55e' : '#7c3aed',
+                  status === 'failed' ? 'var(--status-error)' : status === 'completed' ? 'var(--status-success)' : 'var(--progress-fill)',
                 transition: status === 'completed' ? 'width 0.3s ease-out' : 'none'
               }}
             />
@@ -166,13 +166,13 @@ export const PublishProgressPopup: React.FC<PublishProgressPopupProps> = ({
             <p
               style={{
                 fontSize: '14px',
-                color: status === 'failed' ? '#ef4444' : status === 'completed' ? '#22c55e' : '#71717a'
+                color: status === 'failed' ? 'var(--status-error)' : status === 'completed' ? 'var(--status-success)' : 'var(--dialog-text)'
               }}
             >
               {status === 'completed' ? 'Published successfully!' : status === 'failed' ? 'Failed' : getCurrentStepMessage()}
             </p>
             {status !== 'completed' && status !== 'failed' && (
-              <span style={{ fontSize: '12px', color: '#a1a1aa' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                 {formatTime(elapsedMs)}
               </span>
             )}
@@ -182,11 +182,11 @@ export const PublishProgressPopup: React.FC<PublishProgressPopupProps> = ({
             <div
               className="mt-4 p-3 rounded-lg"
               style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)'
+                backgroundColor: 'var(--status-error-bg)',
+                border: '1px solid var(--status-error-border)'
               }}
             >
-              <p style={{ fontSize: '14px', color: '#ef4444' }}>{error}</p>
+              <p style={{ fontSize: '14px', color: 'var(--status-error)' }}>{error}</p>
             </div>
           )}
         </div>
@@ -200,14 +200,14 @@ export const PublishProgressPopup: React.FC<PublishProgressPopupProps> = ({
                 padding: '11px 20px',
                 fontSize: '14px',
                 fontWeight: 700,
-                color: '#52525b',
-                backgroundColor: '#ffffff',
-                border: '1px solid #e4e4e7',
+                color: 'var(--btn-secondary-text)',
+                backgroundColor: 'var(--btn-secondary-bg)',
+                border: '1px solid var(--btn-secondary-border)',
                 borderRadius: '8px',
                 boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)'
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0f0f2')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--btn-secondary-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--btn-secondary-bg)')}
             >
               Close
             </button>

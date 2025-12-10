@@ -92,13 +92,13 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Navigation bar */}
       <div className="flex-shrink-0 flex items-center px-3" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
         <div className="flex items-center gap-2">
           <button
-            className={`p-1 rounded transition-colors ${canGoBack ? 'hover:bg-[#e8e8e8]' : 'opacity-40 cursor-default'}`}
-            style={{ color: '#737373', backgroundColor: 'transparent' }}
+            className={`p-1 rounded transition-colors ${canGoBack ? 'hover:bg-[var(--hover-bg)]' : 'opacity-40 cursor-default'}`}
+            style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }}
             title="Back"
             onClick={goBack}
             disabled={!canGoBack}
@@ -106,8 +106,8 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
             <ArrowLeft size={18} strokeWidth={1.5} />
           </button>
           <button
-            className={`p-1 rounded transition-colors ${canGoForward ? 'hover:bg-[#e8e8e8]' : 'opacity-40 cursor-default'}`}
-            style={{ color: '#737373', backgroundColor: 'transparent' }}
+            className={`p-1 rounded transition-colors ${canGoForward ? 'hover:bg-[var(--hover-bg)]' : 'opacity-40 cursor-default'}`}
+            style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }}
             title="Forward"
             onClick={goForward}
             disabled={!canGoForward}
@@ -133,9 +133,9 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
             <button
               onClick={() => setIsEditMode(!isEditMode)}
               className="p-2 transition-colors"
-              style={{ color: '#737373', backgroundColor: 'transparent', borderRadius: '6px' }}
+              style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent', borderRadius: '6px' }}
               title={isEditMode ? "Preview mode" : "Edit mode"}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e8e8e8'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               {isEditMode ? <Pencil size={18} strokeWidth={1.5} /> : <Eye size={18} strokeWidth={1.5} />}
@@ -144,9 +144,9 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="p-2 transition-colors"
-                style={{ color: '#ef4444', backgroundColor: 'transparent', borderRadius: '6px' }}
+                style={{ color: 'var(--status-error)', backgroundColor: 'transparent', borderRadius: '6px' }}
                 title="Delete all content with this tag"
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fecaca'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--status-error-bg)'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 <Trash2 size={18} strokeWidth={1.5} />
@@ -155,9 +155,9 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
             <button
               onClick={() => onPublish?.(tag)}
               className="p-2 transition-colors"
-              style={{ color: '#737373', backgroundColor: 'transparent', borderRadius: '6px', marginRight: '16px' }}
+              style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent', borderRadius: '6px', marginRight: '16px' }}
               title="Publish"
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e8e8e8'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               <Rocket size={18} strokeWidth={1.5} />
@@ -169,26 +169,26 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(246, 246, 246, 0.25)', zIndex: 9999 }}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--dialog-backdrop)', zIndex: 9999 }}
           onClick={() => setShowDeleteConfirm(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '360px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e5e7eb',
+              backgroundColor: 'var(--dialog-bg)',
+              border: '1px solid var(--border-light)',
               boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25)',
               padding: '24px',
               borderRadius: '12px'
             }}
           >
-            <h2 className="font-semibold mb-2" style={{ fontSize: '18px', color: '#18181b' }}>Delete Tag Content?</h2>
-            <p className="mb-4" style={{ fontSize: '14px', color: '#71717a', lineHeight: '1.5' }}>
-              This will permanently delete all content tagged with <strong style={{ color: '#3b82f6' }}>{tag}</strong> from your notes.
+            <h2 className="font-semibold mb-2" style={{ fontSize: '18px', color: 'var(--dialog-heading)' }}>Delete Tag Content?</h2>
+            <p className="mb-4" style={{ fontSize: '14px', color: 'var(--dialog-text)', lineHeight: '1.5' }}>
+              This will permanently delete all content tagged with <strong style={{ color: 'var(--accent-primary)' }}>{tag}</strong> from your notes.
               This action cannot be undone.
             </p>
-            <p className="mb-6" style={{ fontSize: '13px', color: '#a1a1aa' }}>
+            <p className="mb-6" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
               {content.length} {content.length === 1 ? 'section' : 'sections'} will be removed from your files.
             </p>
             <div className="flex gap-4 justify-end" style={{ marginTop: '24px' }}>
@@ -199,15 +199,15 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
                   padding: '11px 20px',
                   fontSize: '14px',
                   fontWeight: 700,
-                  color: '#52525b',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #e4e4e7',
+                  color: 'var(--btn-secondary-text)',
+                  backgroundColor: 'var(--btn-secondary-bg)',
+                  border: '1px solid var(--btn-secondary-border)',
                   borderRadius: '8px',
                   boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)',
                   marginRight: '8px'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f2'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--btn-secondary-hover)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--btn-secondary-bg)'}
               >
                 Cancel
               </button>
@@ -227,14 +227,14 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
                   padding: '11px 20px',
                   fontSize: '14px',
                   fontWeight: 700,
-                  color: '#ffffff',
-                  backgroundColor: '#ef4444',
-                  border: '1px solid #ef4444',
+                  color: 'var(--btn-danger-text)',
+                  backgroundColor: 'var(--btn-danger-bg)',
+                  border: '1px solid var(--btn-danger-bg)',
                   borderRadius: '8px',
                   boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--btn-danger-bg-hover)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--btn-danger-bg)'}
               >
                 Delete {content.length} {content.length === 1 ? 'Section' : 'Sections'}
               </button>
@@ -283,9 +283,9 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
                     fontFamily: 'monospace',
                     fontSize: '14px',
                     lineHeight: '1.6',
-                    border: '1px solid #e0e0e0',
-                    backgroundColor: '#fafafa',
-                    color: '#1a1a1a'
+                    border: '1px solid var(--border-primary)',
+                    backgroundColor: 'var(--input-bg)',
+                    color: 'var(--input-text)'
                   }}
                 />
               ) : (
@@ -295,7 +295,7 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
                     rehypePlugins={[rehypeRaw, rehypeSanitize]}
                     components={{
                       a: ({ href, children }) => (
-                        <a href={href} style={{ color: '#7c3aed', textDecoration: 'underline' }}>
+                        <a href={href} style={{ color: 'var(--editor-link)', textDecoration: 'underline' }}>
                           {children}
                         </a>
                       )
@@ -312,7 +312,7 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
 
       {/* Footer note - fixed bottom right */}
       <div className="flex-shrink-0 flex justify-end px-4 py-3">
-        <span style={{ fontSize: '12px', color: '#d4d4d4' }}>
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
           Read-only view aggregating all content tagged with {tag}
         </span>
       </div>

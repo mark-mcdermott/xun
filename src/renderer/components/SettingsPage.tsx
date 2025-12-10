@@ -154,7 +154,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
       <div className="flex-1 flex items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-          <p style={{ color: '#5c5c5c' }}>Loading...</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
         </div>
       </div>
     );
@@ -173,37 +173,37 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
             </Button>
           </div>
 
-          <h2 className="font-semibold mb-6" style={{ fontSize: '20px', color: '#1a1a1a' }}>
+          <h2 className="font-semibold mb-6" style={{ fontSize: '20px', color: 'var(--text-primary)' }}>
             {blogs.find(b => b.id === editingBlog.id) ? 'Edit Blog' : 'Add Blog'}
           </h2>
 
           <div className="space-y-6">
             {/* Blog Name */}
             <div>
-              <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
-                Blog Name <span style={{ color: '#ef4444' }}>*</span>
+              <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
+                Blog Name <span style={{ color: 'var(--status-error)' }}>*</span>
               </label>
               <input
                 type="text"
                 value={editingBlog.name}
                 onChange={e => setEditingBlog({ ...editingBlog, name: e.target.value })}
                 className="w-full"
-                style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--input-bg)', color: 'var(--input-text)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                 placeholder="My Blog"
               />
             </div>
 
             {/* GitHub Section */}
-            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
-              <h3 className="tracking-wider mb-0" style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>GitHub</h3>
-              <p style={{ fontSize: '14.5px', color: '#777777', marginTop: '-2px', marginBottom: '24px' }}>
+            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid var(--border-primary)' }}>
+              <h3 className="tracking-wider mb-0" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>GitHub</h3>
+              <p style={{ fontSize: '14.5px', color: 'var(--text-muted)', marginTop: '-2px', marginBottom: '24px' }}>
                 From your GitHub repo settings:
               </p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
-                    Repository (username/repo) <span style={{ color: '#ef4444' }}>*</span>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
+                    Repository (username/repo) <span style={{ color: 'var(--status-error)' }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -213,14 +213,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       github: { ...editingBlog.github, repo: e.target.value }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="username/blog-repo"
                   />
                 </div>
 
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
-                    Branch <span style={{ color: '#ef4444' }}>*</span>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
+                    Branch <span style={{ color: 'var(--status-error)' }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -230,14 +230,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       github: { ...editingBlog.github, branch: e.target.value }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="main"
                   />
                 </div>
 
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
-                    Personal Access Token <span style={{ color: '#ef4444' }}>*</span>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
+                    Personal Access Token <span style={{ color: 'var(--status-error)' }}>*</span>
                   </label>
                   <input
                     type="password"
@@ -247,7 +247,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       github: { ...editingBlog.github, token: e.target.value }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="ghp_..."
                   />
                 </div>
@@ -255,15 +255,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
             </div>
 
             {/* Cloudflare Section */}
-            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
-              <h3 className="tracking-wider mb-0" style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>Cloudflare Pages</h3>
-              <p style={{ fontSize: '14.5px', color: '#777777', marginTop: '-2px', marginBottom: '24px' }}>
+            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid var(--border-primary)' }}>
+              <h3 className="tracking-wider mb-0" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Cloudflare Pages</h3>
+              <p style={{ fontSize: '14.5px', color: 'var(--text-muted)', marginTop: '-2px', marginBottom: '24px' }}>
                 Optional: Add these to track deployment status
               </p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
                     Account ID
                   </label>
                   <input
@@ -278,16 +278,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="Your Cloudflare account ID"
                   />
-                  <p style={{ fontSize: '11px', color: '#999999', marginTop: '2px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Found in Cloudflare dashboard URL or Workers & Pages → Overview
                   </p>
                 </div>
 
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
                     Project Name
                   </label>
                   <input
@@ -302,16 +302,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="my-blog"
                   />
-                  <p style={{ fontSize: '11px', color: '#999999', marginTop: '2px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     The name of your Pages project (not the domain)
                   </p>
                 </div>
 
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
                     API Token
                   </label>
                   <input
@@ -326,10 +326,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="Your Cloudflare API token"
                   />
-                  <p style={{ fontSize: '11px', color: '#999999', marginTop: '2px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Create at: dash.cloudflare.com → My Profile → API Tokens
                   </p>
                 </div>
@@ -337,13 +337,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
             </div>
 
             {/* Content Section */}
-            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
-              <h3 className="tracking-wider mb-2" style={{ fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>Content</h3>
+            <div style={{ marginTop: '40px', paddingTop: '24px', borderTop: '1px solid var(--border-primary)' }}>
+              <h3 className="tracking-wider mb-2" style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Content</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
-                    Content Path <span style={{ color: '#ef4444' }}>*</span>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
+                    Content Path <span style={{ color: 'var(--status-error)' }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -353,14 +353,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       content: { ...editingBlog.content, path: e.target.value }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="src/content/posts/"
                   />
                 </div>
 
                 <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: '#404040', marginTop: '20px', marginBottom: '14px' }}>
-                    Filename Template <span style={{ color: '#ef4444' }}>*</span>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
+                    Filename Template <span style={{ color: 'var(--status-error)' }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -370,10 +370,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                       content: { ...editingBlog.content, filename: e.target.value }
                     })}
                     className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', color: '#1a1a1a', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
                     placeholder="{tag}.md"
                   />
-                  <p style={{ fontSize: '11px', color: '#999999', marginTop: '2px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Use {'{tag}'} as a placeholder for the tag name
                   </p>
                 </div>
@@ -399,9 +399,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
   return (
     <div className="flex-1 overflow-y-auto" style={{ padding: '40px 48px' }}>
       <div className="max-w-2xl">
-        <h1 className="font-semibold mb-2" style={{ fontSize: '24px', color: '#1a1a1a' }}>Settings</h1>
+        <h1 className="font-semibold mb-2" style={{ fontSize: '24px', color: 'var(--text-primary)' }}>Settings</h1>
         {vaultPath && (
-          <p className="mb-8" style={{ fontSize: '13px', color: '#999999' }}>
+          <p className="mb-8" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
             Vault: {vaultPath}
           </p>
         )}
@@ -409,7 +409,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
         {/* Blog Configurations Section */}
         <div>
           <div className="flex items-center justify-between" style={{ marginBottom: '20px' }}>
-            <h2 className="font-semibold" style={{ fontSize: '16px', color: '#1a1a1a' }}>Blog Configurations</h2>
+            <h2 className="font-semibold" style={{ fontSize: '16px', color: 'var(--text-primary)' }}>Blog Configurations</h2>
             <Button onClick={handleAddBlog} variant="secondary">
               <Plus size={16} strokeWidth={3} style={{ marginRight: '8px' }} />
               Add Blog
@@ -417,8 +417,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
           </div>
 
           {blogs.length === 0 ? (
-            <div className="py-12 text-center rounded-lg" style={{ border: '1px dashed #e0e0e0' }}>
-              <p style={{ fontSize: '14px', color: '#999999' }}>
+            <div className="py-12 text-center rounded-lg" style={{ border: '1px dashed var(--border-primary)' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
                 No blog configurations yet. Add one to get started!
               </p>
             </div>
@@ -428,11 +428,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                 <div
                   key={blog.id}
                   className="flex items-center justify-between transition-shadow hover:shadow-md"
-                  style={{ padding: '12px 20px 16px 20px', border: '1px solid #e4e4e7', backgroundColor: '#ffffff', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', borderRadius: '8px' }}
+                  style={{ padding: '12px 20px 16px 20px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', borderRadius: '8px' }}
                 >
                   <div>
-                    <h3 className="font-medium" style={{ fontSize: '14px', color: '#1a1a1a' }}>{blog.name}</h3>
-                    <p style={{ fontSize: '13px', color: '#999999' }}>
+                    <h3 className="font-medium" style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{blog.name}</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                       {blog.github.repo}{blog.cloudflare?.projectName ? ` → ${blog.cloudflare.projectName}` : ''}
                     </p>
                   </div>
@@ -440,7 +440,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                     <button
                       onClick={() => handleEditBlog(blog)}
                       className="p-2 rounded-lg transition-colors hover:bg-gray-100"
-                      style={{ color: '#737373', backgroundColor: 'transparent' }}
+                      style={{ color: 'var(--text-icon)', backgroundColor: 'transparent' }}
                       title="Edit"
                     >
                       <Edit2 size={16} strokeWidth={1.5} />
@@ -448,7 +448,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ vaultPath }) => {
                     <button
                       onClick={() => handleDeleteBlog(blog.id)}
                       className="p-2 rounded-lg transition-colors hover:bg-red-50"
-                      style={{ color: '#ef4444', backgroundColor: 'transparent' }}
+                      style={{ color: 'var(--status-error)', backgroundColor: 'transparent' }}
                       title="Delete"
                     >
                       <Trash2 size={16} strokeWidth={1.5} />

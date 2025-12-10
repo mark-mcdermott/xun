@@ -70,24 +70,24 @@ export const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+      style={{ backgroundColor: 'var(--dialog-backdrop)' }}
       onClick={onClose}
     >
       <div
         className="rounded-lg shadow-xl w-[400px]"
-        style={{ backgroundColor: '#ffffff' }}
+        style={{ backgroundColor: 'var(--dialog-bg)' }}
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #e0e0e0' }}>
-          <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border-primary)' }}>
+          <h2 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--dialog-heading)' }}>
             {type === 'file' ? 'New Note' : 'New Folder'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-[#e8e8e8] transition-colors"
-            style={{ color: '#737373', backgroundColor: 'transparent' }}
+            className="p-1 rounded hover:bg-[var(--dialog-hover)] transition-colors"
+            style={{ color: 'var(--text-icon)', backgroundColor: 'transparent' }}
           >
             <X size={16} />
           </button>
@@ -99,7 +99,7 @@ export const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
             <label
               htmlFor="name"
               className="block mb-1.5"
-              style={{ fontSize: '13px', color: '#5c5c5c' }}
+              style={{ fontSize: '13px', color: 'var(--dialog-label)' }}
             >
               {type === 'file' ? 'Note name' : 'Folder name'}
             </label>
@@ -113,13 +113,13 @@ export const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
               className="w-full px-3 py-2 rounded"
               style={{
                 fontSize: '13px',
-                border: '1px solid #e0e0e0',
-                backgroundColor: '#fafafa',
-                color: '#1a1a1a'
+                border: '1px solid var(--input-border)',
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--input-text)'
               }}
             />
             {error && (
-              <p className="mt-1.5" style={{ fontSize: '12px', color: '#ef4444' }}>
+              <p className="mt-1.5" style={{ fontSize: '12px', color: 'var(--status-error)' }}>
                 {error}
               </p>
             )}
@@ -132,9 +132,9 @@ export const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
               className="px-3 py-1.5 rounded transition-colors"
               style={{
                 fontSize: '13px',
-                color: '#5c5c5c',
+                color: 'var(--btn-secondary-text)',
                 backgroundColor: 'transparent',
-                border: '1px solid #e0e0e0'
+                border: '1px solid var(--btn-secondary-border)'
               }}
             >
               Cancel
@@ -145,8 +145,8 @@ export const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
               className="px-3 py-1.5 rounded transition-colors"
               style={{
                 fontSize: '13px',
-                color: '#ffffff',
-                backgroundColor: isCreating ? '#9ca3af' : '#737373',
+                color: 'var(--btn-primary-text)',
+                backgroundColor: isCreating ? 'var(--text-muted)' : 'var(--text-icon)',
                 border: 'none'
               }}
             >

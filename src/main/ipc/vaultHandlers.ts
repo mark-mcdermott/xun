@@ -81,6 +81,26 @@ export function registerVaultHandlers(): void {
     }
   });
 
+  // Move file or folder
+  ipcMain.handle('vault:move-file', async (_event, sourcePath: string, destFolder: string) => {
+    try {
+      const newPath = await vaultManager.moveFile(sourcePath, destFolder);
+      return { success: true, newPath };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Rename file or folder
+  ipcMain.handle('vault:rename-file', async (_event, oldPath: string, newName: string) => {
+    try {
+      const newPath = await vaultManager.renameFile(oldPath, newName);
+      return { success: true, newPath };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
   // Get today's note
   ipcMain.handle('vault:get-today-note', async () => {
     try {

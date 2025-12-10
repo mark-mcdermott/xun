@@ -44,7 +44,7 @@ type EditorViewMode = 'markdown' | 'editor' | 'split' | 'preview';
 type Tab = { type: 'file'; path: string; content: string } | { type: 'tag'; tag: string };
 
 const App: React.FC = () => {
-  const { vaultPath, fileTree, loading, error, readFile, writeFile, createFile, createFolder, deleteFile, getTodayNote, getDailyNote, getDailyNoteDates, refreshFileTree } = useVault();
+  const { vaultPath, fileTree, loading, error, readFile, writeFile, createFile, createFolder, deleteFile, moveFile, renameFile, getTodayNote, getDailyNote, getDailyNoteDates, refreshFileTree } = useVault();
   const { tags, loading: tagsLoading, getTagContent, deleteTag, refreshTags } = useTags();
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files');
@@ -60,6 +60,7 @@ const App: React.FC = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createDialogType, setCreateDialogType] = useState<'file' | 'folder'>('file');
   const [inlineCreateType, setInlineCreateType] = useState<'file' | 'folder' | null>(null);
+  const [inlineCreateFolder, setInlineCreateFolder] = useState<{ folderPath: string; type: 'file' | 'folder' } | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(260);
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -380,7 +381,8 @@ const App: React.FC = () => {
       setShowSettings(false);
       pushToHistory({ type: 'file', path });
 
-      // Refresh daily note dates in case a new one was created
+      // Refresh file tree and daily note dates in case a new one was created
+      await refreshFileTree();
       const dates = await getDailyNoteDates();
       setDailyNoteDates(dates);
     } catch (err: any) {
@@ -402,7 +404,8 @@ const App: React.FC = () => {
       setShowSettings(false);
       pushToHistory({ type: 'file', path });
 
-      // Refresh daily note dates in case a new one was created
+      // Refresh file tree and daily note dates in case a new one was created
+      await refreshFileTree();
       const dates = await getDailyNoteDates();
       setDailyNoteDates(dates);
     } catch (err: any) {
@@ -445,20 +448,96 @@ const App: React.FC = () => {
     await handleDateSelect(date);
   };
 
-  const handleCreateFile = () => {
-    setSidebarTab('files');
-    setInlineCreateType('file');
+  // Helper to find next available "Untitled" name
+  const getNextUntitledName = (basePath: string): string => {
+    const existingNames = new Set<string>();
+
+    // Collect existing file names from file tree
+    const collectNames = (node: typeof fileTree) => {
+      if (!node) return;
+      if (node.type === 'file') {
+        existingNames.add(node.name.replace('.md', ''));
+      }
+      node.children?.forEach(collectNames);
+    };
+    collectNames(fileTree);
+
+    // Also check open tabs
+    openTabs.forEach(tab => {
+      if (tab.type === 'file') {
+        const name = tab.path.split('/').pop()?.replace('.md', '') || '';
+        existingNames.add(name);
+      }
+    });
+
+    // Find next available name
+    if (!existingNames.has('Untitled')) {
+      return 'Untitled';
+    }
+    let counter = 2;
+    while (existingNames.has(`Untitled ${counter}`)) {
+      counter++;
+    }
+    return `Untitled ${counter}`;
   };
 
-  const handleCreateFolder = () => {
+  // Helper to find next available "Untitled" folder name
+  const getNextUntitledFolderName = (basePath: string): string => {
+    const existingNames = new Set<string>();
+
+    // Collect existing folder names from file tree
+    const collectNames = (node: typeof fileTree) => {
+      if (!node) return;
+      if (node.type === 'folder') {
+        existingNames.add(node.name);
+      }
+      node.children?.forEach(collectNames);
+    };
+    collectNames(fileTree);
+
+    // Find next available name
+    if (!existingNames.has('Untitled')) {
+      return 'Untitled';
+    }
+    let counter = 2;
+    while (existingNames.has(`Untitled ${counter}`)) {
+      counter++;
+    }
+    return `Untitled ${counter}`;
+  };
+
+  const handleCreateFile = async () => {
     setSidebarTab('files');
-    setInlineCreateType('folder');
+    const name = getNextUntitledName('');
+    const path = `${name}.md`;
+    const initialContent = `# ${name}\n\n`;
+
+    try {
+      await createFile(path, initialContent);
+      setOpenTabs(prev => [...prev, { type: 'file', path, content: initialContent }]);
+      setActiveTabIndex(openTabs.length);
+      setShowSettings(false);
+    } catch (err: any) {
+      console.error('Failed to create file:', err);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    setSidebarTab('files');
+    // Immediately create an Untitled folder like we do with files
+    const name = getNextUntitledFolderName('');
+    const path = name;
+    try {
+      await createFolder(path);
+    } catch (err: any) {
+      console.error('Failed to create folder:', err);
+    }
   };
 
   const handleInlineCreate = async (name: string, type: 'file' | 'folder') => {
     try {
       if (type === 'file') {
-        const path = `notes/${name}`;
+        const path = name;
         const initialContent = `# ${name.replace('.md', '')}\n\n`;
         await createFile(path, initialContent);
 
@@ -467,7 +546,7 @@ const App: React.FC = () => {
         setActiveTabIndex(openTabs.length);
         setShowSettings(false);
       } else {
-        const path = `notes/${name}`;
+        const path = name;
         await createFolder(path);
       }
     } catch (err: any) {
@@ -479,6 +558,136 @@ const App: React.FC = () => {
 
   const handleInlineCancel = () => {
     setInlineCreateType(null);
+  };
+
+  // Handle moving file via drag-and-drop
+  const handleMoveFile = async (sourcePath: string, destFolder: string) => {
+    try {
+      const newPath = await moveFile(sourcePath, destFolder);
+
+      // Update any open tab that has this file
+      setOpenTabs(prev => prev.map(tab => {
+        if (tab.type === 'file' && tab.path === sourcePath) {
+          return { ...tab, path: newPath };
+        }
+        return tab;
+      }));
+    } catch (err: any) {
+      console.error('Failed to move file:', err);
+    }
+  };
+
+  // Handle renaming file or folder
+  const handleRenameFile = async (oldPath: string, newName: string): Promise<string | null> => {
+    try {
+      // Check if this is a file (has .md extension)
+      const isFile = newName.endsWith('.md');
+
+      const newPath = await renameFile(oldPath, newName);
+
+      // If it's a file, update the title in the document
+      if (isFile) {
+        const newTitle = newName.replace('.md', '');
+
+        // Check if file is open in a tab
+        const openTab = openTabs.find(tab => tab.type === 'file' && tab.path === oldPath);
+
+        if (openTab && openTab.type === 'file') {
+          // Update the # Title line in the content
+          const updatedContent = openTab.content.replace(/^# .+$/m, `# ${newTitle}`);
+
+          // Write the updated content to the file
+          await writeFile(newPath, updatedContent);
+
+          // Update the tab with new path and content
+          setOpenTabs(prev => prev.map(tab => {
+            if (tab.type === 'file' && tab.path === oldPath) {
+              return { ...tab, path: newPath, content: updatedContent };
+            }
+            return tab;
+          }));
+        } else {
+          // File not open, read it, update title, and write back
+          try {
+            const content = await readFile(newPath);
+            const updatedContent = content.replace(/^# .+$/m, `# ${newTitle}`);
+            await writeFile(newPath, updatedContent);
+          } catch (err) {
+            // File might not have a title line, that's ok
+            console.log('Could not update title in file:', err);
+          }
+        }
+      } else {
+        // It's a folder, just update any open tabs with paths inside this folder
+        setOpenTabs(prev => prev.map(tab => {
+          if (tab.type === 'file' && tab.path.startsWith(oldPath + '/')) {
+            const relativePath = tab.path.substring(oldPath.length);
+            return { ...tab, path: newPath + relativePath };
+          }
+          return tab;
+        }));
+      }
+
+      return newPath;
+    } catch (err: any) {
+      console.error('Failed to rename file:', err);
+      return null;
+    }
+  };
+
+  // Handle context menu "New Note" or "New Folder" in a specific folder
+  const handleCreateInFolder = async (folderPath: string, type: 'file' | 'folder') => {
+    if (type === 'file') {
+      // Immediately create an Untitled file like Obsidian
+      const name = getNextUntitledName(folderPath);
+      const path = `${folderPath}/${name}.md`;
+      const initialContent = `# ${name}\n\n`;
+
+      try {
+        await createFile(path, initialContent);
+        setOpenTabs(prev => [...prev, { type: 'file', path, content: initialContent }]);
+        setActiveTabIndex(openTabs.length);
+        setShowSettings(false);
+      } catch (err: any) {
+        console.error('Failed to create file:', err);
+      }
+    } else {
+      // Immediately create an Untitled folder like we do with files
+      const name = getNextUntitledFolderName(folderPath);
+      const path = `${folderPath}/${name}`;
+      try {
+        await createFolder(path);
+      } catch (err: any) {
+        console.error('Failed to create folder:', err);
+      }
+    }
+  };
+
+  // Handle inline create within a folder (now only used for folders)
+  const handleInlineCreateInFolder = async (name: string, folderPath: string, type: 'file' | 'folder') => {
+    try {
+      if (type === 'file') {
+        const path = `${folderPath}/${name}`;
+        const initialContent = `# ${name.replace('.md', '')}\n\n`;
+        await createFile(path, initialContent);
+
+        // Open the new file in a tab
+        setOpenTabs(prev => [...prev, { type: 'file', path, content: initialContent }]);
+        setActiveTabIndex(openTabs.length);
+        setShowSettings(false);
+      } else {
+        const path = `${folderPath}/${name}`;
+        await createFolder(path);
+      }
+    } catch (err: any) {
+      console.error('Failed to create in folder:', err);
+    } finally {
+      setInlineCreateFolder(null);
+    }
+  };
+
+  const handleInlineCreateInFolderCancel = () => {
+    setInlineCreateFolder(null);
   };
 
   const handleDeleteFile = async (path: string, type: 'file' | 'folder') => {
@@ -763,15 +972,15 @@ const App: React.FC = () => {
       />
 
       {/* Top bar - spans full width */}
-      <div className="h-[45px] flex items-center" style={{ backgroundColor: '#f6f6f6', borderBottom: '1px solid #e0e0e0' }}>
+      <div className="h-[45px] flex items-center" style={{ backgroundColor: 'var(--tab-bar-bg)', borderBottom: '1px solid var(--border-primary)' }}>
         {/* Left section - same width as both sidebars (44px + 1px border + sidebarWidth, or just auto when collapsed) */}
-        <div className="h-full flex items-center" style={{ width: sidebarCollapsed ? 'auto' : `${44 + 1 + sidebarWidth}px`, borderRight: sidebarCollapsed ? 'none' : '1px solid #e0e0e0' }}>
+        <div className="h-full flex items-center" style={{ width: sidebarCollapsed ? 'auto' : `${44 + 1 + sidebarWidth}px`, borderRight: sidebarCollapsed ? 'none' : '1px solid var(--border-primary)', WebkitAppRegion: 'drag' } as React.CSSProperties}>
           {/* macOS traffic light space */}
-          <div className="w-[70px] h-full" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
+          <div className="w-[70px] h-full" />
 
           {/* Collapse sidebar button */}
-          <div className="flex items-center justify-end h-full flex-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-            <button className="h-full px-3 hover:bg-[#e8e8e8] transition-colors cursor-pointer" style={{ color: '#737373', backgroundColor: 'transparent', marginLeft: sidebarCollapsed ? '10px' : '0' }} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
+          <div className="flex items-center justify-end h-full flex-1">
+            <button className="h-full px-3 hover:bg-[var(--sidebar-hover)] transition-colors cursor-pointer" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent', marginLeft: sidebarCollapsed ? '10px' : '0', WebkitAppRegion: 'no-drag' } as React.CSSProperties} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>
               {sidebarCollapsed ? <PanelLeftOpen size={22} strokeWidth={1.5} style={{ marginTop: '1px' }} /> : <PanelLeftClose size={20} strokeWidth={1.5} />}
             </button>
           </div>
@@ -792,9 +1001,9 @@ const App: React.FC = () => {
                     onClick={() => handleTabClick(index)}
                     className="flex items-center justify-between cursor-pointer"
                     style={{
-                      backgroundColor: isActive ? '#ffffff' : '#f6f6f6',
-                      border: '1px solid #e0e0e0',
-                      borderBottom: isActive ? '1px solid #ffffff' : 'none',
+                      backgroundColor: isActive ? 'var(--tab-active-bg)' : 'var(--tab-inactive-bg)',
+                      border: '1px solid var(--border-primary)',
+                      borderBottom: isActive ? '1px solid var(--tab-active-bg)' : 'none',
                       marginLeft: index === 0 ? (sidebarCollapsed ? '15px' : '12px') : '6px',
                       height: 'calc(100% - 8px)',
                       width: '180px',
@@ -805,10 +1014,10 @@ const App: React.FC = () => {
                       marginBottom: isActive ? '-1px' : '0'
                     }}
                   >
-                    <span className="truncate" style={{ fontSize: '13.5px', color: isActive ? '#4a4a4a' : '#6a6a6a' }}>{tabLabel}</span>
+                    <span className="truncate" style={{ fontSize: '13.5px', color: isActive ? 'var(--tab-active-text)' : 'var(--tab-inactive-text)' }}>{tabLabel}</span>
                     <button
-                      className="p-0.5 rounded transition-colors flex items-center justify-center hover:bg-[#e0e0e0]"
-                      style={{ color: isActive ? '#4a4a4a' : '#6a6a6a', backgroundColor: 'transparent' }}
+                      className="p-0.5 rounded transition-colors flex items-center justify-center hover:bg-[var(--tab-close-hover)]"
+                      style={{ color: isActive ? 'var(--tab-active-text)' : 'var(--tab-inactive-text)', backgroundColor: 'transparent' }}
                       title="Close tab"
                       onClick={(e) => handleCloseTab(index, e)}
                     >
@@ -822,9 +1031,9 @@ const App: React.FC = () => {
                 <div
                   className="flex items-center justify-between cursor-pointer"
                   style={{
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #e0e0e0',
-                    borderBottom: '1px solid #ffffff',
+                    backgroundColor: 'var(--tab-active-bg)',
+                    border: '1px solid var(--border-primary)',
+                    borderBottom: '1px solid var(--tab-active-bg)',
                     marginLeft: openTabs.length === 0 ? (sidebarCollapsed ? '15px' : '12px') : '6px',
                     height: 'calc(100% - 8px)',
                     width: '180px',
@@ -835,13 +1044,13 @@ const App: React.FC = () => {
                     marginBottom: '-1px'
                   }}
                 >
-                  <span className="flex items-center gap-2" style={{ fontSize: '13.5px', color: '#4a4a4a' }}>
+                  <span className="flex items-center gap-2" style={{ fontSize: '13.5px', color: 'var(--tab-active-text)' }}>
                     <Settings size={14} strokeWidth={1.5} />
                     Settings
                   </span>
                   <button
-                    className="p-0.5 rounded transition-colors flex items-center justify-center hover:bg-[#e0e0e0]"
-                    style={{ color: '#4a4a4a', backgroundColor: 'transparent' }}
+                    className="p-0.5 rounded transition-colors flex items-center justify-center hover:bg-[var(--tab-close-hover)]"
+                    style={{ color: 'var(--tab-active-text)', backgroundColor: 'transparent' }}
                     title="Close settings"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -854,8 +1063,8 @@ const App: React.FC = () => {
               )}
               {/* New tab button */}
               <button
-                className="h-full transition-colors flex items-center justify-center hover:bg-[#e8e8e8]"
-                style={{ color: '#808080', backgroundColor: 'transparent', paddingLeft: '12px', paddingRight: '8px' }}
+                className="h-full transition-colors flex items-center justify-center hover:bg-[var(--sidebar-hover)]"
+                style={{ color: 'var(--tab-inactive-text)', backgroundColor: 'transparent', paddingLeft: '12px', paddingRight: '8px' }}
                 title="New note"
                 onClick={handleQuickCreateFile}
               >
@@ -867,7 +1076,7 @@ const App: React.FC = () => {
 
         {/* Right side controls */}
         <div className="flex items-center pr-3 gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          {/* <button className="p-1 hover:bg-[#e8e8e8] rounded" style={{ color: '#737373' }}>
+          {/* <button className="p-1 hover:bg-[var(--sidebar-hover)] rounded" style={{ color: 'var(--sidebar-icon)' }}>
             <ChevronDown size={16} strokeWidth={1.5} />
           </button> */}
         </div>
@@ -876,38 +1085,38 @@ const App: React.FC = () => {
       {/* Main area below top bar */}
       <div className="flex-1 flex overflow-hidden">
         {/* Far-left Icon Sidebar */}
-        <div className="w-[44px] min-w-[44px] flex-shrink-0 flex flex-col items-center" style={{ backgroundColor: '#f6f6f6', borderRight: '1px solid #e0e0e0', paddingTop: '16px' }}>
+        <div className="w-[46px] min-w-[46px] flex-shrink-0 flex flex-col items-center" style={{ backgroundColor: 'var(--sidebar-bg)', borderRight: '1px solid var(--border-primary)', paddingTop: '16px' }}>
           {/* Top icons */}
-          {/* <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent', marginBottom: '8px' }} title="Daily Notes" onClick={() => setSidebarTab('daily')}>
+          {/* <button className="p-2 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent', marginBottom: '8px' }} title="Daily Notes" onClick={() => setSidebarTab('daily')}>
             <Calendar size={20} strokeWidth={1.5} />
           </button> */}
-          <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent', marginBottom: '8px' }} title="Today's Note" onClick={handleOpenTodayNote}>
+          <button className="p-2 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent', marginBottom: '8px' }} title="Today's Note" onClick={handleOpenTodayNote}>
             <FileText size={20} strokeWidth={1.5} />
           </button>
-          <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent', marginBottom: '8px' }} title="File Tree" onClick={() => setSidebarTab('files')}>
+          <button className="p-2 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent', marginBottom: '8px' }} title="File Tree" onClick={() => setSidebarTab('files')}>
             <FolderTree size={20} strokeWidth={1.5} />
           </button>
-          <button className="p-2 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Tags" onClick={() => setSidebarTab('tags')}>
+          <button className="p-2 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Tags" onClick={() => setSidebarTab('tags')}>
             <Code size={20} strokeWidth={1.5} />
           </button>
         </div>
 
         {/* Left Sidebar - File tree with toolbar */}
         {!sidebarCollapsed && (
-        <div className="flex flex-col relative" style={{ width: `${sidebarWidth + 1}px`, backgroundColor: '#f6f6f6', paddingTop: '16px' }}>
+        <div className="flex flex-col relative" style={{ width: `${sidebarWidth + 1}px`, backgroundColor: 'var(--sidebar-bg)', paddingTop: '16px' }}>
           {/* Resize handle */}
           <div
             className="absolute inset-y-0 cursor-col-resize hover:bg-blue-400/50 transition-colors"
-            style={{ right: 0, width: '4px', top: 0, bottom: 0, backgroundColor: isResizing ? 'rgba(96, 165, 250, 0.5)' : 'transparent', borderRight: '1px solid #e0e0e0' }}
+            style={{ right: 0, width: '4px', top: 0, bottom: 0, backgroundColor: isResizing ? 'var(--resize-handle)' : 'transparent', borderRight: '1px solid var(--border-primary)' }}
             onMouseDown={handleResizeStart}
           />
           {/* Sidebar toolbar */}
           <div className="h-9 flex items-center" style={{ backgroundColor: 'transparent', marginBottom: '16px', paddingLeft: '20px' }}>
             <div className="flex items-center gap-0.5">
-              <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="New note" onClick={handleCreateFile}>
+              <button className="p-1.5 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="New note" onClick={handleCreateFile}>
                 <FilePlus size={20} strokeWidth={1.5} />
               </button>
-              <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="New folder" onClick={handleCreateFolder}>
+              <button className="p-1.5 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="New folder" onClick={handleCreateFolder}>
                 <FolderPlus size={20} strokeWidth={1.5} />
               </button>
             </div>
@@ -926,9 +1135,28 @@ const App: React.FC = () => {
                 tree={fileTree}
                 onFileClick={handleFileClick}
                 onDelete={handleDeleteFile}
+                onMoveFile={handleMoveFile}
+                onRename={handleRenameFile}
                 inlineCreateType={inlineCreateType}
                 onInlineCreate={handleInlineCreate}
                 onInlineCancel={handleInlineCancel}
+                inlineCreateFolder={inlineCreateFolder}
+                onInlineCreateInFolder={handleInlineCreateInFolder}
+                onInlineCreateInFolderCancel={handleInlineCreateInFolderCancel}
+                onCreateInFolder={handleCreateInFolder}
+                onSidebarContextMenu={async () => {
+                  const result = await window.electronAPI.contextMenu.showSidebarMenu();
+                  if (result) {
+                    switch (result.action) {
+                      case 'new-note':
+                        handleCreateFile();
+                        break;
+                      case 'new-folder':
+                        handleCreateFolder();
+                        break;
+                    }
+                  }
+                }}
               />
             ) : (
               <TagBrowser
@@ -940,8 +1168,8 @@ const App: React.FC = () => {
           </div>
 
           {/* Bottom vault selector and settings - all on one row */}
-          <div className="px-2 flex items-center justify-between" style={{ borderTop: '1px solid #e0e0e0', paddingTop: '10px', paddingBottom: '10px' }}>
-            <button className="flex items-center px-2 py-1.5 hover:bg-[#e8e8e8] rounded text-xs" style={{ color: '#737373', backgroundColor: 'transparent' }}>
+          <div className="px-2 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-primary)', paddingTop: '10px', paddingBottom: '10px' }}>
+            <button className="flex items-center px-2 py-1.5 hover:bg-[var(--sidebar-hover)] rounded text-xs" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }}>
               <div className="flex flex-col items-center" style={{ marginRight: '6px', marginLeft: '8px' }}>
                 <ChevronUp size={12} strokeWidth={2} className="mb-[-4px]" />
                 <ChevronDown size={12} strokeWidth={2} />
@@ -949,10 +1177,10 @@ const App: React.FC = () => {
               <span className="truncate text-left" style={{ fontWeight: 600 }}>{getVaultName()}</span>
             </button>
             <div className="flex items-center gap-1">
-              {/* <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="Help">
+              {/* <button className="p-1.5 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Help">
                 <HelpCircle size={16} strokeWidth={1.5} />
               </button> */}
-              <button className="p-1.5 hover:bg-[#e8e8e8] rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent', marginRight: '8px' }} title="Settings" onClick={() => setShowSettings(true)}>
+              <button className="p-1.5 hover:bg-[var(--sidebar-hover)] rounded transition-colors" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent', marginRight: '8px' }} title="Settings" onClick={() => setShowSettings(true)}>
                 <Settings size={18} strokeWidth={1.5} />
               </button>
             </div>
@@ -961,19 +1189,19 @@ const App: React.FC = () => {
         )}
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col bg-white">
+        <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
 
         {showSettings ? (
           <SettingsPage vaultPath={vaultPath} />
         ) : activeFileTab ? (
           <>
             {/* Navigation bar with breadcrumb */}
-            <div className="flex items-center px-3 relative" style={{ paddingTop: '10px', paddingBottom: '10px' }}>
+            <div className="flex items-center relative" style={{ paddingTop: '16px', paddingBottom: '10px', paddingLeft: '16px', paddingRight: '24px' }}>
               {/* Left side - arrow buttons */}
               <div className="flex items-center gap-2">
                 <button
-                  className={`p-1 rounded transition-colors ${canGoBack ? 'hover:bg-[#e8e8e8]' : 'opacity-40 cursor-default'}`}
-                  style={{ color: '#737373', backgroundColor: 'transparent' }}
+                  className={`p-1 rounded transition-colors ${canGoBack ? 'hover:bg-[var(--hover-bg)]' : 'opacity-40 cursor-default'}`}
+                  style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }}
                   title="Back"
                   onClick={goBack}
                   disabled={!canGoBack}
@@ -981,8 +1209,8 @@ const App: React.FC = () => {
                   <ArrowLeft size={18} strokeWidth={1.5} />
                 </button>
                 <button
-                  className={`p-1 rounded transition-colors ${canGoForward ? 'hover:bg-[#e8e8e8]' : 'opacity-40 cursor-default'}`}
-                  style={{ color: '#737373', backgroundColor: 'transparent' }}
+                  className={`p-1 rounded transition-colors ${canGoForward ? 'hover:bg-[var(--hover-bg)]' : 'opacity-40 cursor-default'}`}
+                  style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }}
                   title="Forward"
                   onClick={goForward}
                   disabled={!canGoForward}
@@ -1000,7 +1228,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1 ml-auto">
                 <button
                   className="p-1 rounded transition-colors"
-                  style={{ color: '#737373', backgroundColor: 'transparent' }}
+                  style={{ color: 'var(--text-icon)', backgroundColor: 'transparent', marginTop: '6px' }}
                   title={`View mode: ${editorViewMode}`}
                   onClick={() => {
                     const modes: EditorViewMode[] = ['markdown', 'editor', 'split', 'preview'];
@@ -1013,7 +1241,7 @@ const App: React.FC = () => {
                   {editorViewMode === 'split' && <Columns size={18} strokeWidth={1.5} />}
                   {editorViewMode === 'preview' && <Eye size={18} strokeWidth={1.5} />}
                 </button>
-                {/* <button className="p-1 rounded transition-colors" style={{ color: '#737373', backgroundColor: 'transparent' }} title="More options">
+                {/* <button className="p-1 rounded transition-colors" style={{ color: 'var(--text-icon)', backgroundColor: 'transparent' }} title="More options">
                   <MoreHorizontal size={18} strokeWidth={1.5} />
                 </button> */}
               </div>
@@ -1044,11 +1272,13 @@ const App: React.FC = () => {
 
             {/* Status bar - matching Obsidian layout */}
             <div className="flex items-center justify-end">
-              <div className="flex items-center" style={{ color: '#5c5c5c', gap: '28px', backgroundColor: '#f6f6f6', padding: '6px 13px', fontSize: '12.75px', borderTop: '1px solid #e0e0e0', borderLeft: '1px solid #e0e0e0', borderTopLeftRadius: '8px' }}>
+              <div className="flex items-center" style={{ color: 'var(--status-bar-text)', gap: '28px', backgroundColor: 'var(--status-bar-bg)', padding: '6px 13px', fontSize: '12.75px', borderTop: '1px solid var(--border-primary)', borderLeft: '1px solid var(--border-primary)', borderTopLeftRadius: '8px' }}>
+                {/* Backlinks - commented out for now
                 <div className="flex items-center gap-1">
                   <Link size={12} strokeWidth={1.5} style={{ marginRight: '3px' }} />
                   <span>0 backlinks</span>
                 </div>
+                */}
                 <div className="flex items-center gap-1">
                   <Pencil size={12} strokeWidth={1.5} style={{ marginRight: '3px' }} />
                   <span>{getWordCount(fileContent)} {getWordCount(fileContent) === 1 ? 'word' : 'words'}</span>
@@ -1072,12 +1302,12 @@ const App: React.FC = () => {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-16 h-16 rounded-xl bg-[#f5f5f5] flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8" style={{ color: '#999999' }} strokeWidth={1.5} />
+              <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                <FileText className="w-8 h-8" style={{ color: 'var(--text-muted)' }} strokeWidth={1.5} />
               </div>
-              <p className="text-[#5c5c5c] mb-1">Select a file to view</p>
-              <p className="text-xs" style={{ color: '#999999' }}>
-                Press <kbd className="px-1.5 py-0.5 bg-[#f5f5f5] rounded text-[#5c5c5c]">⌘P</kbd> to open command palette
+              <p style={{ color: 'var(--text-secondary)' }} className="mb-1">Select a file to view</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Press <kbd className="px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>⌘P</kbd> to open command palette
               </p>
             </div>
           </div>
