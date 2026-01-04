@@ -397,11 +397,31 @@ class BlogBlockHeaderWidget extends WidgetType {
     if (this.hasPublish) {
       const iconBtn = document.createElement('button');
       iconBtn.className = 'cm-blog-publish-btn';
+      const blockLine = this.blockStartLine;
 
       if (this.isPublished) {
         iconBtn.innerHTML = CHECK_CIRCLE_ICON_SVG;
-        iconBtn.title = 'Published';
-        iconBtn.style.cssText = 'background: none; border: none; cursor: default; padding: 4px; border-radius: 4px; display: flex; align-items: center; color: #16a34a;';
+        iconBtn.title = 'Click to republish';
+        iconBtn.style.cssText = 'background: none; border: none; cursor: default; padding: 4px; border-radius: 4px; transition: background-color 0.15s; display: flex; align-items: center; color: #16a34a;';
+        iconBtn.onmouseenter = () => { iconBtn.style.backgroundColor = '#f0f0f0'; };
+        iconBtn.onmouseleave = () => { iconBtn.style.backgroundColor = 'transparent'; };
+
+        iconBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          // Switch to rocket icon for republishing
+          iconBtn.innerHTML = ROCKET_ICON_SVG;
+          iconBtn.title = 'Republish this blog post';
+          iconBtn.style.color = '#3f0c8d';
+          // Now clicking again will publish
+          iconBtn.onclick = (e2) => {
+            e2.preventDefault();
+            e2.stopPropagation();
+            window.dispatchEvent(new CustomEvent('blog-publish-click', {
+              detail: { blockLine }
+            }));
+          };
+        };
       } else {
         iconBtn.innerHTML = ROCKET_ICON_SVG;
         iconBtn.title = 'Publish this blog post';
@@ -409,7 +429,6 @@ class BlogBlockHeaderWidget extends WidgetType {
         iconBtn.onmouseenter = () => { iconBtn.style.backgroundColor = '#f0f0f0'; };
         iconBtn.onmouseleave = () => { iconBtn.style.backgroundColor = 'transparent'; };
 
-        const blockLine = this.blockStartLine;
         iconBtn.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -499,6 +518,8 @@ function createDecorations(
 
   let inCodeBlock = false;
   let inBlogBlock = false;
+  let inBlogFrontmatter = false;
+  let blogFrontmatterDashCount = 0;
   let blogBlockStartLine = -1;
 
   for (let i = 1; i <= doc.lines; i++) {
@@ -511,6 +532,8 @@ function createDecorations(
       if (!inBlogBlock) {
         // Opening ===
         inBlogBlock = true;
+        inBlogFrontmatter = true;
+        blogFrontmatterDashCount = 0;
         blogBlockStartLine = i;
 
         // Look ahead to check if published: true exists in the block
@@ -535,6 +558,8 @@ function createDecorations(
       } else {
         // Closing ===
         inBlogBlock = false;
+        inBlogFrontmatter = false;
+        blogFrontmatterDashCount = 0;
         blogBlockStartLine = -1;
 
         if (!cursorOnThisLine) {
@@ -544,6 +569,15 @@ function createDecorations(
             }).range(line.from, line.to)
           );
         }
+      }
+      continue;
+    }
+
+    // Track frontmatter state within blog block (between --- lines)
+    if (inBlogBlock && lineText.trim() === '---') {
+      blogFrontmatterDashCount++;
+      if (blogFrontmatterDashCount >= 2) {
+        inBlogFrontmatter = false;
       }
       continue;
     }
@@ -571,8 +605,8 @@ function createDecorations(
       continue;
     }
 
-    // Inside blog block - don't apply markdown formatting (frontmatter)
-    if (inBlogBlock) {
+    // Inside blog block frontmatter - don't apply markdown formatting
+    if (inBlogFrontmatter) {
       continue;
     }
 
@@ -838,7 +872,8 @@ const editorTheme = EditorView.theme({
     textDecoration: 'line-through'
   },
   '.cm-inline-code': {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: 'var(--editor-code-bg)',
+    color: 'var(--text-primary)',
     padding: '0 4px',
     borderRadius: '3px',
     fontFamily: 'monospace',
@@ -1316,25 +1351,17 @@ tags: [""]
 
       let blockContent = '';
       let blogName = '';
-      let hasPublished = false;
 
       for (let j = boundaries.start + 1; j < boundaries.end; j++) {
         const blockLineText = doc.line(j).text;
         const blogMatch = blockLineText.match(/^blog:\s*"([^"]*)"/);
         if (blogMatch) {
           blogName = blogMatch[1];
-        } else if (blockLineText.match(/^published:\s*true/)) {
-          hasPublished = true;
         }
 
         if (!blogMatch && !blockLineText.match(/^published:/)) {
           blockContent += blockLineText + '\n';
         }
-      }
-
-      if (hasPublished) {
-        alert('This post has already been published.');
-        return;
       }
 
       if (!blogName) {

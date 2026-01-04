@@ -38,7 +38,7 @@ import { PublishDialog } from './components/PublishDialog';
 import { PublishProgressPopup } from './components/PublishProgressPopup';
 import { SettingsPage } from './components/SettingsPage';
 import { CreateFileDialog } from './components/CreateFileDialog';
-import logoLeftFacing from './assets/logo-left-facing.png';
+import logoLeftFacing from './assets/pink-and-gray-mech-left.png';
 
 type SidebarTab = 'files' | 'tags' | 'daily';
 type EditorViewMode = 'markdown' | 'editor' | 'split' | 'preview';
