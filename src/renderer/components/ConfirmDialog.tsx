@@ -38,30 +38,21 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   if (!isOpen) return null;
 
-  const getConfirmButtonStyle = () => {
-    if (variant === 'danger') {
-      return {
-        color: 'white',
-        backgroundColor: 'var(--status-error)',
-        border: 'none'
-      };
-    }
-    return {
-      color: 'var(--btn-primary-text)',
-      backgroundColor: 'var(--text-icon)',
-      border: 'none'
-    };
-  };
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: 'var(--dialog-backdrop)' }}
+      className="fixed z-50 flex items-center justify-center"
+      style={{
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)'
+      }}
       onClick={onCancel}
     >
       <div
-        className="rounded-lg shadow-xl w-[400px]"
-        style={{ backgroundColor: 'var(--dialog-bg)' }}
+        className="shadow-xl w-[400px]"
+        style={{ backgroundColor: 'var(--dialog-bg)', borderRadius: '12px', padding: '20px' }}
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
@@ -69,7 +60,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border-primary)' }}>
           <div className="flex items-center gap-2">
             {variant === 'danger' && (
-              <AlertTriangle size={18} style={{ color: 'var(--status-error)' }} />
+              <AlertTriangle size={18} style={{ color: 'var(--status-error)', marginRight: '8px' }} />
             )}
             <h2 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--dialog-heading)' }}>
               {title}
@@ -96,12 +87,17 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-1.5 rounded transition-colors"
+            className="transition-colors"
             style={{
+              padding: '8px 16px',
               fontSize: '13px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)',
               color: 'var(--btn-secondary-text)',
-              backgroundColor: 'transparent',
-              border: '1px solid var(--btn-secondary-border)'
+              backgroundColor: 'var(--btn-secondary-bg)',
+              border: '1px solid var(--btn-secondary-border)',
+              marginRight: '16px'
             }}
           >
             {cancelText}
@@ -110,10 +106,18 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             ref={confirmButtonRef}
             type="button"
             onClick={onConfirm}
-            className="px-3 py-1.5 rounded transition-colors"
+            className="transition-colors"
             style={{
+              padding: '8px 16px',
               fontSize: '13px',
-              ...getConfirmButtonStyle()
+              fontWeight: 600,
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)',
+              border: '1px solid var(--btn-secondary-border)',
+              ...(variant === 'danger'
+                ? { color: 'white', backgroundColor: 'var(--status-error)' }
+                : { color: 'var(--btn-secondary-text)', backgroundColor: 'var(--btn-secondary-bg)' }
+              )
             }}
           >
             {confirmText}
