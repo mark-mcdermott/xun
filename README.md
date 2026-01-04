@@ -65,6 +65,7 @@ Your blog content here...
 | `description` | Short description for SEO/previews |
 | `publishDate` | Publication date in YYYY-MM-DD format (auto-filled with today's date) |
 | `tags` | Array of tags for the post |
+| `slug` | Auto-set after publish - tracks filename for rename detection |
 | `published` | Auto-set to `true` after successful publish |
 
 ### Tag Format
@@ -97,9 +98,9 @@ To update an already-published post:
 1. Make your edits to the content
 2. Click the **green checkmark** - it switches to a rocket icon
 3. Click the **rocket** to republish
-4. The post overwrites the previous version (same filename if title unchanged)
+4. The post overwrites the previous version
 
-**Note:** If you change the title, a new file is created (old one remains).
+**Title changes are handled automatically:** If you change the title, the old file is deleted and a new one is created with the new name. The `slug` field in frontmatter tracks the original filename.
 
 ### Two Publishing Methods
 

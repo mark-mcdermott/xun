@@ -204,9 +204,15 @@ export class PublishManager {
       // Extract title from frontmatter for filename
       const titleMatch = content.match(/title:\s*"([^"]*)"/);
       const title = titleMatch?.[1] || 'untitled';
-      const commitSha = await this.pushToGitHubDirect(githubClient, blogTarget, title, content);
+      const { sha: commitSha, slug } = await this.pushToGitHubDirect(githubClient, blogTarget, title, content);
 
       this.updateStepStatus(jobId, 1, 'completed', `Pushed commit ${commitSha.slice(0, 7)}`);
+
+      // Store slug in job for the renderer to retrieve
+      const job = this.jobs.get(jobId);
+      if (job) {
+        (job as any).slug = slug;
+      }
 
       // Step 3: Wait for Cloudflare deployment (if configured)
       if (hasCloudflare && blogTarget.cloudflare) {
@@ -263,7 +269,7 @@ export class PublishManager {
     blogTarget: BlogTarget,
     title: string,
     content: string
-  ): Promise<string> {
+  ): Promise<{ sha: string; slug: string }> {
     console.log('PublishManager: pushToGitHubDirect called');
     console.log('  title:', title);
     console.log('  content length:', content?.length);
@@ -271,18 +277,44 @@ export class PublishManager {
     const { repo, branch } = blogTarget.github;
     const { path: basePath, filename } = blogTarget.content;
 
-    // Sanitize title for filename
-    const sanitizedTitle = title
+    // Sanitize title for filename (this is the new slug)
+    const newSlug = title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
 
-    // Determine file path
-    const fileName = filename?.replace('{tag}', sanitizedTitle) || `${sanitizedTitle}.md`;
+    // Check if there's an existing slug in the content (from previous publish)
+    const slugMatch = content.match(/slug:\s*"([^"]*)"/);
+    const oldSlug = slugMatch?.[1];
+
+    console.log('  newSlug:', newSlug);
+    console.log('  oldSlug:', oldSlug);
+
+    // If slug changed, delete the old file first
+    if (oldSlug && oldSlug !== newSlug) {
+      const oldFileName = filename?.replace('{tag}', oldSlug) || `${oldSlug}.md`;
+      const oldFilePath = `${basePath}${oldFileName}`;
+      console.log('  Slug changed, deleting old file:', oldFilePath);
+
+      const oldFile = await client.getFileContent(repo, oldFilePath, branch);
+      if (oldFile) {
+        await client.deleteFile(
+          repo,
+          oldFilePath,
+          `Rename ${oldSlug} to ${newSlug}`,
+          branch,
+          oldFile.sha
+        );
+        console.log('  Old file deleted');
+      }
+    }
+
+    // Determine new file path
+    const fileName = filename?.replace('{tag}', newSlug) || `${newSlug}.md`;
     const filePath = `${basePath}${fileName}`;
     console.log('  filePath:', filePath);
 
-    // Check if file exists
+    // Check if new file path exists (for update case where slug didn't change)
     const existing = await client.getFileContent(repo, filePath, branch);
 
     // Create or update file
@@ -299,7 +331,7 @@ export class PublishManager {
       existing?.sha
     );
 
-    return result.sha;
+    return { sha: result.sha, slug: newSlug };
   }
 
   private async prepareContent(tag: string): Promise<string> {

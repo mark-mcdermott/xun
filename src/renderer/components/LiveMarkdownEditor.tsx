@@ -990,7 +990,7 @@ interface LiveMarkdownEditorProps {
   onSave: (content: string) => Promise<void>;
   onTagClick?: (tag: string, newTab: boolean) => void;
   blogs?: Array<{ id: string; name: string }>;
-  onPublishBlogBlock?: (blogId: string, content: string) => Promise<boolean>;
+  onPublishBlogBlock?: (blogId: string, content: string) => Promise<{ success: boolean; slug?: string }>;
 }
 
 // Helper to check if a position is inside a === blog block
@@ -1375,15 +1375,18 @@ tags: [""]
         return;
       }
 
-      const success = await onPublishBlogBlock(blog.id, blockContent.trim());
+      const result = await onPublishBlogBlock(blog.id, blockContent.trim());
 
-      if (success && viewRef.current) {
+      if (result.success && viewRef.current) {
         const freshDoc = viewRef.current.state.doc;
         const freshBoundaries = findBlogBlockBoundaries(freshDoc, freshDoc.line(blockLine).from);
 
         if (freshBoundaries) {
           let freshClosingDashLine = -1;
+          let existingSlugLine = -1;
+          let existingPublishedLine = -1;
           let dashCount = 0;
+
           for (let j = freshBoundaries.start + 1; j < freshBoundaries.end; j++) {
             const lineText = freshDoc.line(j).text.trim();
             if (lineText === '---') {
@@ -1393,16 +1396,66 @@ tags: [""]
                 break;
               }
             }
+            if (lineText.startsWith('slug:')) {
+              existingSlugLine = j;
+            }
+            if (lineText.startsWith('published:')) {
+              existingPublishedLine = j;
+            }
           }
 
           if (freshClosingDashLine !== -1) {
-            const closingLine = freshDoc.line(freshClosingDashLine);
-            const insertPos = closingLine.from;
-            const insertText = 'published: true\n';
+            const changes: Array<{ from: number; to: number; insert: string }> = [];
 
-            viewRef.current.dispatch({
-              changes: { from: insertPos, to: insertPos, insert: insertText }
-            });
+            // Update or add slug
+            if (result.slug) {
+              if (existingSlugLine !== -1) {
+                // Update existing slug line
+                const slugLine = freshDoc.line(existingSlugLine);
+                changes.push({
+                  from: slugLine.from,
+                  to: slugLine.to,
+                  insert: `slug: "${result.slug}"`
+                });
+              } else {
+                // Add new slug line before closing ---
+                const closingLine = freshDoc.line(freshClosingDashLine);
+                changes.push({
+                  from: closingLine.from,
+                  to: closingLine.from,
+                  insert: `slug: "${result.slug}"\n`
+                });
+              }
+            }
+
+            // Update or add published: true
+            if (existingPublishedLine !== -1) {
+              // Update existing published line
+              const pubLine = freshDoc.line(existingPublishedLine);
+              changes.push({
+                from: pubLine.from,
+                to: pubLine.to,
+                insert: 'published: true'
+              });
+            } else {
+              // Add new published line before closing ---
+              // Need to recalculate position after slug insertion
+              const closingLine = freshDoc.line(freshClosingDashLine);
+              const offset = result.slug && existingSlugLine === -1 ? `slug: "${result.slug}"\n`.length : 0;
+              changes.push({
+                from: closingLine.from + offset,
+                to: closingLine.from + offset,
+                insert: 'published: true\n'
+              });
+            }
+
+            // Apply all changes at once, sorted by position (descending to avoid offset issues)
+            changes.sort((a, b) => b.from - a.from);
+            for (const change of changes) {
+              viewRef.current.dispatch({
+                changes: change
+              });
+            }
 
             contentRef.current = viewRef.current.state.doc.toString();
 

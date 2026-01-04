@@ -116,6 +116,38 @@ export class GitHubClient {
   }
 
   /**
+   * Delete a file from the repository
+   */
+  async deleteFile(
+    repo: string,
+    path: string,
+    message: string,
+    branch: string,
+    sha: string
+  ): Promise<GitHubCommitResponse> {
+    const response = await fetch(`${this.baseUrl}/repos/${repo}/contents/${path}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        message,
+        sha,
+        branch
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to delete file: ${error.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    return {
+      sha: data.commit.sha,
+      url: data.commit.html_url
+    };
+  }
+
+  /**
    * Get repository information
    */
   async getRepository(repo: string): Promise<any> {

@@ -73,7 +73,7 @@ const App: React.FC = () => {
   const [blogBlockPublishProgress, setBlogBlockPublishProgress] = useState(0);
   const [blogBlockPublishSteps, setBlogBlockPublishSteps] = useState<Array<{ name: string; status: 'pending' | 'in_progress' | 'completed' | 'failed'; message?: string }>>([]);
   const [blogBlockPublishError, setBlogBlockPublishError] = useState<string | null>(null);
-  const blogBlockPublishResolveRef = useRef<((success: boolean) => void) | null>(null);
+  const blogBlockPublishResolveRef = useRef<((result: { success: boolean; slug?: string }) => void) | null>(null);
 
   // Navigation history for back/forward
   type HistoryEntry = { type: 'file'; path: string } | { type: 'tag'; tag: string } | { type: 'settings' };
@@ -302,7 +302,10 @@ const App: React.FC = () => {
         // Resolve the promise when complete
         if (data.status === 'completed' || data.status === 'failed') {
           if (blogBlockPublishResolveRef.current) {
-            blogBlockPublishResolveRef.current(data.status === 'completed');
+            blogBlockPublishResolveRef.current({
+              success: data.status === 'completed',
+              slug: data.slug
+            });
             blogBlockPublishResolveRef.current = null;
           }
         }
@@ -830,7 +833,7 @@ const App: React.FC = () => {
   };
 
   // Direct publish from blog block (with progress popup)
-  const handlePublishBlogBlock = async (blogId: string, content: string): Promise<boolean> => {
+  const handlePublishBlogBlock = async (blogId: string, content: string): Promise<{ success: boolean; slug?: string }> => {
     try {
       // Reset state
       setBlogBlockPublishStatus('pending');
@@ -842,7 +845,7 @@ const App: React.FC = () => {
 
       if (result.success && result.jobId) {
         // Create a promise that will resolve when the job completes
-        const completionPromise = new Promise<boolean>((resolve) => {
+        const completionPromise = new Promise<{ success: boolean; slug?: string }>((resolve) => {
           blogBlockPublishResolveRef.current = resolve;
         });
 
@@ -855,13 +858,13 @@ const App: React.FC = () => {
         setBlogBlockPublishError(result.error || 'Failed to start publish job');
         setBlogBlockPublishStatus('failed');
         setBlogBlockPublishJobId('error'); // Show popup with error
-        return false;
+        return { success: false };
       }
     } catch (err: any) {
       setBlogBlockPublishError(err.message || 'Failed to publish');
       setBlogBlockPublishStatus('failed');
       setBlogBlockPublishJobId('error'); // Show popup with error
-      return false;
+      return { success: false };
     }
   };
 
