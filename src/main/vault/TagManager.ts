@@ -78,16 +78,22 @@ export class TagManager {
       // Parse tagged sections
       const parsed = parseTaggedSections(content, relativePath);
 
+      // Get file stats for timestamp (once per file)
+      const stats = await fs.stat(filePath);
+
       // Index each tagged section
       for (const section of parsed.sections) {
-        if (!this.tagIndex[section.tag]) {
-          this.tagIndex[section.tag] = [];
+        // Skip sections with invalid/empty tags
+        if (!section.tag || typeof section.tag !== 'string') {
+          continue;
         }
 
-        // Get file stats for timestamp
-        const stats = await fs.stat(filePath);
+        const tag = section.tag;
+        if (!this.tagIndex[tag]) {
+          this.tagIndex[tag] = [];
+        }
 
-        this.tagIndex[section.tag].push({
+        this.tagIndex[tag].push({
           date: parsed.date || stats.mtime.toISOString().split('T')[0],
           filePath: relativePath,
           content: section.content,

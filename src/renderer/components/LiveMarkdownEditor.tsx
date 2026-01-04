@@ -665,7 +665,7 @@ function createDecorations(
     }
 
     // Track @ post state
-    const atPostMatch = lineText.match(/^@(\S+)\s+post\s*$/);
+    const atPostMatch = lineText.match(/^@(.+)\s+post\s*$/);
     if (atPostMatch && !inAtPost && !inBlogBlock && !inCodeBlock) {
       // Check if this is a valid blog name
       const blogName = atPostMatch[1];
@@ -714,20 +714,25 @@ function createDecorations(
       }
     }
 
-    // Inside @ post - handle @ field lines
+    // Inside @ post - handle @ field lines (style entire line in gray italic)
     if (inAtPost && lineText.match(/^@[a-zA-Z]/)) {
-      const fieldMatch = lineText.match(/^@(\w+)(\s+(.*))?$/);
-      if (fieldMatch) {
-        const fieldName = fieldMatch[1];
-        const fieldEnd = line.from + 1 + fieldName.length;
-        // Style the @fieldName portion
-        if (!cursorOnThisLine) {
-          decorations.push(
-            Decoration.mark({ class: 'cm-at-field' }).range(line.from, fieldEnd)
-          );
-        }
-        continue;
+      if (!cursorOnThisLine) {
+        decorations.push(
+          Decoration.mark({ class: 'cm-at-field' }).range(line.from, line.to)
+        );
       }
+      continue;
+    }
+
+    // Style @ decorator lines even outside a formally recognized @ post block
+    // This handles cases where the blog name isn't in settings yet
+    if (!inAtPost && !inBlogBlock && !inCodeBlock && lineText.match(/^@[a-zA-Z]/)) {
+      if (!cursorOnThisLine) {
+        decorations.push(
+          Decoration.mark({ class: 'cm-at-field' }).range(line.from, line.to)
+        );
+      }
+      continue;
     }
 
     // Track code block state
@@ -1295,7 +1300,7 @@ tags: [""]
       const lineText = doc.line(i).text;
 
       // Check for @blogname post pattern
-      const atPostMatch = lineText.match(/^@(\S+)\s+post\s*$/);
+      const atPostMatch = lineText.match(/^@(.+)\s+post\s*$/);
       if (atPostMatch && !inAtPost) {
         // Verify this is a valid blog name
         const blogName = atPostMatch[1];
@@ -1511,7 +1516,7 @@ tags: [""]
             for (let i = atPostInfo.startLine + 1; i <= doc.lines; i++) {
               const lineText = doc.line(i).text;
               // End conditions
-              if (lineText.trim() === '---' || lineText.match(/^#[a-zA-Z]/) || lineText.match(/^@[a-zA-Z]+\s+post$/)) {
+              if (lineText.trim() === '---' || lineText.match(/^#[a-zA-Z]/) || lineText.match(/^@.+\s+post\s*$/)) {
                 atPostEndLine = i;
                 break;
               }
@@ -1899,7 +1904,7 @@ tags: [""]
         const lineText = doc.line(j).text;
 
         // End conditions: ---, hashtag, or another @ post
-        if (lineText.trim() === '---' || lineText.match(/^#[a-zA-Z]/) || lineText.match(/^@[a-zA-Z]+\s+post$/)) {
+        if (lineText.trim() === '---' || lineText.match(/^#[a-zA-Z]/) || lineText.match(/^@.+\s+post\s*$/)) {
           atPostEndLine = j - 1;
           break;
         }
@@ -1972,7 +1977,7 @@ tags: [""]
 
         for (let j = blockLine + 1; j <= freshDoc.lines; j++) {
           const lineText = freshDoc.line(j).text;
-          if (lineText.trim() === '---' || lineText.match(/^#[a-zA-Z]/) || lineText.match(/^@[a-zA-Z]+\s+post$/)) {
+          if (lineText.trim() === '---' || lineText.match(/^#[a-zA-Z]/) || lineText.match(/^@.+\s+post\s*$/)) {
             break;
           }
           if (lineText.match(/^@\w+/)) {
@@ -1986,25 +1991,14 @@ tags: [""]
           }
         }
 
-        // Update or add @slug
-        if (result.slug && result.slug !== frontmatter.slug) {
-          if (slugLineNum !== -1) {
-            const slugLine = freshDoc.line(slugLineNum);
-            changes.push({
-              from: slugLine.from,
-              to: slugLine.to,
-              insert: `@slug ${result.slug}`
-            });
-          } else {
-            // Add after last field line
-            const insertLine = freshDoc.line(lastFieldLine);
-            changes.push({
-              from: insertLine.to,
-              to: insertLine.to,
-              insert: `\n@slug ${result.slug}`
-            });
-            lastFieldLine++; // Account for added line
-          }
+        // Only update @slug if user already has one in the document
+        if (result.slug && result.slug !== frontmatter.slug && slugLineNum !== -1) {
+          const slugLine = freshDoc.line(slugLineNum);
+          changes.push({
+            from: slugLine.from,
+            to: slugLine.to,
+            insert: `@slug ${result.slug}`
+          });
         }
 
         // Add @published true if not already present
