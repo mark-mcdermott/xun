@@ -353,7 +353,7 @@ const App: React.FC = () => {
       }
     };
     loadBlogs();
-  }, []);
+  }, [vaultPath]);
 
   // Load vaults for vault switcher
   useEffect(() => {
@@ -1606,6 +1606,7 @@ const App: React.FC = () => {
             onPublish={handlePublish}
             onUpdateContent={handleUpdateTagContent}
             onTagClick={handleEditorTagClick}
+            blogs={blogs}
             canGoBack={canGoBack}
             canGoForward={canGoForward}
             goBack={goBack}

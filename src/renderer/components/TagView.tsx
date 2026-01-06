@@ -15,19 +15,21 @@ interface TagViewProps {
   onPublish?: (tag: string) => void;
   onUpdateContent?: (filePath: string, oldContent: string, newContent: string) => Promise<void>;
   onTagClick?: (tag: string, newTab: boolean) => void;
+  blogs?: Array<{ id: string; name: string }>;
   canGoBack?: boolean;
   canGoForward?: boolean;
   goBack?: () => void;
   goForward?: () => void;
 }
 
-export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, onUpdateContent, onTagClick, canGoBack, canGoForward, goBack, goForward }) => {
+export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, onUpdateContent, onTagClick, blogs, canGoBack, canGoForward, goBack, goForward }) => {
   const [content, setContent] = useState<TaggedContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  // Track original content for each item to enable updates
-  const originalContentRef = useRef<Map<number, string>>(new Map());
+
+  // Track original content for each item to enable proper find/replace when saving
+  const originalContentRef = useRef<Map<string, string>>(new Map());
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -48,9 +50,10 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
         const result = await getContent(tag);
         setContent(result);
         // Store original content for each item
-        originalContentRef.current = new Map();
+        originalContentRef.current.clear();
         result.forEach((item, index) => {
-          originalContentRef.current.set(index, item.content);
+          const key = `${item.filePath}-${index}`;
+          originalContentRef.current.set(key, item.content);
         });
       } catch (err: any) {
         setError(err.message);
@@ -61,20 +64,6 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
 
     loadContent();
   }, [tag, getContent]);
-
-  // Create save handler for each content section
-  const createSaveHandler = (index: number, filePath: string) => {
-    return async (newContent: string) => {
-      const originalContent = originalContentRef.current.get(index);
-      if (originalContent && newContent !== originalContent && onUpdateContent) {
-        await onUpdateContent(filePath, originalContent, newContent);
-        // Update original content ref after successful save
-        originalContentRef.current.set(index, newContent);
-        // Update local state
-        setContent(prev => prev.map((c, i) => i === index ? { ...c, content: newContent } : c));
-      }
-    };
-  };
 
   if (loading) {
     return (
@@ -255,14 +244,22 @@ export const TagView: React.FC<TagViewProps> = ({ tag, getContent, onDeleteTag, 
                 {item.filePath.replace('.md', '')}
               </h2>
 
-              {/* Live Markdown Editor - same as note page */}
-              <div style={{ marginLeft: '0', marginRight: '0' }}>
+              {/* Content - editable with LiveMarkdownEditor */}
+              <div style={{ marginLeft: '48px', marginRight: '24px' }}>
                 <LiveMarkdownEditor
-                  key={`${item.filePath}-${index}-${item.content.substring(0, 20)}`}
                   initialContent={item.content}
                   filePath={item.filePath}
-                  onSave={createSaveHandler(index, item.filePath)}
+                  onSave={async (newContent: string) => {
+                    if (onUpdateContent) {
+                      const key = `${item.filePath}-${index}`;
+                      const originalContent = originalContentRef.current.get(key) || item.content;
+                      await onUpdateContent(item.filePath, originalContent, newContent);
+                      // Update the ref with the new content after successful save
+                      originalContentRef.current.set(key, newContent);
+                    }
+                  }}
                   onTagClick={onTagClick}
+                  blogs={blogs}
                 />
               </div>
             </div>
