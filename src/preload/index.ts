@@ -8,6 +8,12 @@ export interface FileNode {
   children?: FileNode[];
   extension?: string;
   modifiedAt?: number;
+  // CMS fields for remote posts
+  source?: 'local' | 'remote';
+  remoteMeta?: {
+    blogId: string;
+    sha: string;
+  };
 }
 
 interface VaultResponse<T = any> {
@@ -121,6 +127,22 @@ export interface ElectronAPI {
     unsubscribe: (jobId: string) => Promise<VaultResponse>;
     getAverageTime: () => Promise<VaultResponse<{ averageMs: number }>>;
   };
+
+  // CMS operations (remote blog post management)
+  cms: {
+    getRemoteTree: () => Promise<VaultResponse<{ folders: FileNode[] }>>;
+    getPostContent: (blogId: string, path: string) => Promise<VaultResponse<{ content: string; sha: string }>>;
+    refreshCache: () => Promise<VaultResponse>;
+    refreshBlog: (blogId: string) => Promise<VaultResponse>;
+    saveDraft: (blogId: string, path: string, content: string, originalSha: string, originalContent: string) => Promise<VaultResponse>;
+    getDraft: (blogId: string, path: string) => Promise<VaultResponse<{ draft: { content: string; originalSha: string } | null }>>;
+    discardDraft: (blogId: string, path: string) => Promise<VaultResponse>;
+    hasDraft: (blogId: string, path: string) => Promise<VaultResponse<{ hasDraft: boolean }>>;
+    publishPost: (blogId: string, path: string, content: string, sha: string) => Promise<VaultResponse<{ newSha: string }>>;
+    getModifiedPaths: (blogId: string) => Promise<VaultResponse<{ paths: string[] }>>;
+    onCacheUpdated: (callback: () => void) => void;
+    removeCacheListener: () => void;
+  };
 }
 
 // Expose protected methods that allow the renderer process to use
@@ -209,6 +231,32 @@ const api: ElectronAPI = {
       return ipcRenderer.invoke('publish:unsubscribe', jobId);
     },
     getAverageTime: () => ipcRenderer.invoke('publish:get-average-time')
+  },
+
+  cms: {
+    getRemoteTree: () => ipcRenderer.invoke('cms:get-remote-tree'),
+    getPostContent: (blogId: string, path: string) =>
+      ipcRenderer.invoke('cms:get-post-content', blogId, path),
+    refreshCache: () => ipcRenderer.invoke('cms:refresh-cache'),
+    refreshBlog: (blogId: string) => ipcRenderer.invoke('cms:refresh-blog', blogId),
+    saveDraft: (blogId: string, path: string, content: string, originalSha: string, originalContent: string) =>
+      ipcRenderer.invoke('cms:save-draft', blogId, path, content, originalSha, originalContent),
+    getDraft: (blogId: string, path: string) =>
+      ipcRenderer.invoke('cms:get-draft', blogId, path),
+    discardDraft: (blogId: string, path: string) =>
+      ipcRenderer.invoke('cms:discard-draft', blogId, path),
+    hasDraft: (blogId: string, path: string) =>
+      ipcRenderer.invoke('cms:has-draft', blogId, path),
+    publishPost: (blogId: string, path: string, content: string, sha: string) =>
+      ipcRenderer.invoke('cms:publish-post', blogId, path, content, sha),
+    getModifiedPaths: (blogId: string) =>
+      ipcRenderer.invoke('cms:get-modified-paths', blogId),
+    onCacheUpdated: (callback: () => void) => {
+      ipcRenderer.on('cms:cache-updated', () => callback());
+    },
+    removeCacheListener: () => {
+      ipcRenderer.removeAllListeners('cms:cache-updated');
+    }
   }
 };
 

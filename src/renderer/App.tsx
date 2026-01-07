@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useVault } from './hooks/useVault';
 import { useTags } from './hooks/useTags';
+import { useRemotePosts } from './hooks/useRemotePosts';
 import { FileTree } from './components/FileTree';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { LiveMarkdownEditor } from './components/LiveMarkdownEditor';
@@ -43,11 +44,15 @@ import logoLeftFacing from './assets/pink-and-gray-mech-left.png';
 
 type SidebarTab = 'files' | 'tags' | 'daily';
 type EditorViewMode = 'markdown' | 'editor' | 'split' | 'preview';
-type Tab = { type: 'file'; path: string; content: string } | { type: 'tag'; tag: string };
+type Tab =
+  | { type: 'file'; path: string; content: string }
+  | { type: 'tag'; tag: string }
+  | { type: 'remote-file'; blogId: string; path: string; content: string; sha: string; originalContent: string };
 
 const App: React.FC = () => {
   const { vaultPath, fileTree, loading, error, readFile, writeFile, createFile, createFolder, deleteFile, moveFile, renameFile, getTodayNote, getDailyNote, getDailyNoteDates, refreshFileTree } = useVault();
   const { tags, loading: tagsLoading, getTagContent, deleteTag, refreshTags } = useTags();
+  const { remoteFolders, getPostContent, saveDraft, publishPost, hasDraft } = useRemotePosts();
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files');
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
@@ -101,6 +106,7 @@ const App: React.FC = () => {
   const activeTab = activeTabIndex >= 0 ? openTabs[activeTabIndex] : null;
   const activeFileTab = activeTab?.type === 'file' ? activeTab : null;
   const activeTagTab = activeTab?.type === 'tag' ? activeTab : null;
+  const activeRemoteTab = activeTab?.type === 'remote-file' ? activeTab : null;
   const selectedFile = activeFileTab?.path ?? null;
   const fileContent = activeFileTab?.content ?? '';
   const selectedTag = activeTagTab?.tag ?? null;
@@ -532,6 +538,64 @@ const App: React.FC = () => {
     }
   };
 
+  // Handle remote file click (CMS)
+  const handleRemoteFileClick = async (blogId: string, path: string) => {
+    try {
+      // Check if remote file is already open
+      const existingIndex = openTabs.findIndex(
+        tab => tab.type === 'remote-file' && tab.blogId === blogId && tab.path === path
+      );
+      if (existingIndex >= 0) {
+        setActiveTabIndex(existingIndex);
+      } else {
+        const { content, sha } = await getPostContent(blogId, path);
+        setOpenTabs(prev => [...prev, {
+          type: 'remote-file',
+          blogId,
+          path,
+          content,
+          sha,
+          originalContent: content
+        }]);
+        setActiveTabIndex(openTabs.length);
+      }
+      setShowSettings(false);
+    } catch (err: any) {
+      console.error('Failed to read remote file:', err);
+      alert(`Failed to read remote file: ${err.message}`);
+    }
+  };
+
+  // Handle publishing a remote file
+  const handlePublishRemote = async (blogId: string, path: string) => {
+    // Find the tab with this remote file
+    const tabIndex = openTabs.findIndex(
+      tab => tab.type === 'remote-file' && tab.blogId === blogId && tab.path === path
+    );
+
+    if (tabIndex >= 0) {
+      const tab = openTabs[tabIndex];
+      if (tab.type === 'remote-file') {
+        try {
+          const newSha = await publishPost(blogId, path, tab.content, tab.sha);
+          // Update the tab with the new SHA and reset original content
+          setOpenTabs(prev => prev.map((t, i) =>
+            i === tabIndex && t.type === 'remote-file'
+              ? { ...t, sha: newSha, originalContent: t.content }
+              : t
+          ));
+          alert('Post published successfully!');
+        } catch (err: any) {
+          console.error('Failed to publish:', err);
+          alert(`Failed to publish: ${err.message}`);
+        }
+      }
+    } else {
+      // File not open, just show a message
+      alert('Please open the file first to publish changes');
+    }
+  };
+
   const handleTabClick = (index: number) => {
     const tab = openTabs[index];
     setActiveTabIndex(index);
@@ -539,9 +603,10 @@ const App: React.FC = () => {
     if (tab) {
       if (tab.type === 'file') {
         pushToHistory({ type: 'file', path: tab.path });
-      } else {
+      } else if (tab.type === 'tag') {
         pushToHistory({ type: 'tag', tag: tab.tag });
       }
+      // Don't add remote files to navigation history for now
     }
   };
 
@@ -651,6 +716,31 @@ const App: React.FC = () => {
       await refreshTags();
     } catch (err: any) {
       console.error('Failed to save file:', err);
+      throw err;
+    }
+  };
+
+  // Handle saving remote file edits as drafts
+  const handleRemoteSave = async (content: string) => {
+    if (!activeRemoteTab || activeTabIndex < 0) return;
+    const currentTab = openTabs[activeTabIndex];
+    if (currentTab?.type !== 'remote-file') return;
+
+    try {
+      // Save as draft
+      await saveDraft(
+        currentTab.blogId,
+        currentTab.path,
+        content,
+        currentTab.sha,
+        currentTab.originalContent
+      );
+      // Update content in the tabs array
+      setOpenTabs(prev => prev.map((tab, i) =>
+        i === activeTabIndex && tab.type === 'remote-file' ? { ...tab, content } : tab
+      ));
+    } catch (err: any) {
+      console.error('Failed to save remote draft:', err);
       throw err;
     }
   };
@@ -1224,11 +1314,11 @@ const App: React.FC = () => {
         <div className="flex items-end h-full flex-1" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
           {(openTabs.length > 0 || showSettings) && (
             <div className="flex items-end h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-              {/* All Tabs (file and tag) */}
+              {/* All Tabs (file, tag, and remote-file) */}
               {openTabs.map((tab, index) => {
                 const isActive = index === activeTabIndex && !showSettings;
-                const tabKey = tab.type === 'file' ? tab.path : `tag-${tab.tag}`;
-                const tabLabel = tab.type === 'file' ? getFileName(tab.path) : tab.tag;
+                const tabKey = tab.type === 'file' ? tab.path : tab.type === 'remote-file' ? `remote-${tab.blogId}-${tab.path}` : `tag-${tab.tag}`;
+                const tabLabel = tab.type === 'file' ? getFileName(tab.path) : tab.type === 'remote-file' ? getFileName(tab.path) : tab.tag;
                 return (
                   <div
                     key={tabKey}
@@ -1366,7 +1456,10 @@ const App: React.FC = () => {
             ) : sidebarTab === 'files' ? (
               <FileTree
                 tree={fileTree}
+                remoteFolders={remoteFolders}
                 onFileClick={handleFileClick}
+                onRemoteFileClick={handleRemoteFileClick}
+                onPublishRemote={handlePublishRemote}
                 onDelete={handleDeleteFile}
                 onMoveFile={handleMoveFile}
                 onRename={handleRenameFile}
@@ -1612,6 +1705,64 @@ const App: React.FC = () => {
             goBack={goBack}
             goForward={goForward}
           />
+        ) : activeRemoteTab ? (
+          <>
+            {/* Navigation bar for remote file */}
+            <div className="flex items-center relative" style={{ paddingTop: '16px', paddingBottom: '10px', paddingLeft: '16px', paddingRight: '24px' }}>
+              {/* Left side - arrow buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  className={`p-1 rounded transition-colors ${canGoBack ? 'hover:bg-[var(--hover-bg)]' : 'opacity-40 cursor-default'}`}
+                  style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }}
+                  title="Back"
+                  onClick={goBack}
+                  disabled={!canGoBack}
+                >
+                  <ArrowLeft size={18} strokeWidth={1.5} />
+                </button>
+                <button
+                  className={`p-1 rounded transition-colors ${canGoForward ? 'hover:bg-[var(--hover-bg)]' : 'opacity-40 cursor-default'}`}
+                  style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }}
+                  title="Forward"
+                  onClick={goForward}
+                  disabled={!canGoForward}
+                >
+                  <ArrowRight size={18} strokeWidth={1.5} />
+                </button>
+              </div>
+
+              {/* Center - remote file path */}
+              <div className="absolute left-1/2 transform -translate-x-1/2">
+                <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  {activeRemoteTab.path.split('/').pop()?.replace('.md', '')}
+                </span>
+              </div>
+            </div>
+
+            {/* Remote file editor */}
+            <div className="flex-1 overflow-hidden">
+              <LiveMarkdownEditor
+                key={`remote-${activeRemoteTab.blogId}-${activeRemoteTab.path}`}
+                initialContent={activeRemoteTab.content}
+                filePath={activeRemoteTab.path}
+                onSave={handleRemoteSave}
+                onTagClick={handleEditorTagClick}
+                blogs={blogs}
+                onPublishBlogBlock={handlePublishBlogBlock}
+              />
+            </div>
+
+            {/* Status bar */}
+            <div className="flex items-center justify-end">
+              <div className="flex items-center" style={{ color: 'var(--status-bar-text)', gap: '28px', backgroundColor: 'var(--status-bar-bg)', padding: '6px 13px', fontSize: '12.75px', borderTop: '1px solid var(--border-primary)', borderLeft: '1px solid var(--border-primary)', borderTopLeftRadius: '8px' }}>
+                <div className="flex items-center gap-1">
+                  <Pencil size={12} strokeWidth={1.5} style={{ marginRight: '3px' }} />
+                  <span>{getWordCount(activeRemoteTab.content)} {getWordCount(activeRemoteTab.content) === 1 ? 'word' : 'words'}</span>
+                </div>
+                <span>{getCharCount(activeRemoteTab.content)} {getCharCount(activeRemoteTab.content) === 1 ? 'character' : 'characters'}</span>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">

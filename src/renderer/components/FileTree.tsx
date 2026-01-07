@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronRight, FileText, Folder } from 'lucide-react';
+import { ChevronRight, FileText, Folder, Rocket } from 'lucide-react';
 import type { FileNode } from '../../preload';
 
 interface FileTreeNodeProps {
   node: FileNode;
   onFileClick?: (path: string) => void;
+  onRemoteFileClick?: (blogId: string, path: string) => void;
+  onPublishRemote?: (blogId: string, path: string) => void;
   onDelete?: (path: string, type: 'file' | 'folder') => void;
   onMoveFile?: (sourcePath: string, destFolder: string) => void;
   onCreateInFolder?: (folderPath: string, type: 'file' | 'folder') => void;
@@ -27,6 +29,8 @@ interface FileTreeNodeProps {
 const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   node,
   onFileClick,
+  onRemoteFileClick,
+  onPublishRemote,
   onDelete,
   onMoveFile,
   onCreateInFolder,
@@ -45,6 +49,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   expandedPaths,
   onFolderToggle
 }) => {
+  const isRemote = node.source === 'remote';
   // Use controlled expansion if expandedPaths is provided, otherwise use local state
   const [localExpanded, setLocalExpanded] = useState(level < 2);
   const isExpanded = expandedPaths ? expandedPaths.has(node.path) : localExpanded;
@@ -57,8 +62,21 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
       } else {
         setLocalExpanded(!localExpanded);
       }
+    } else if (isRemote && node.remoteMeta) {
+      // Handle remote file click
+      // Extract the actual path from the remote path format "remote:blogId:path"
+      const actualPath = node.path.replace(`remote:${node.remoteMeta.blogId}:`, '');
+      onRemoteFileClick?.(node.remoteMeta.blogId, actualPath);
     } else {
       onFileClick?.(node.path);
+    }
+  };
+
+  const handlePublishClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isRemote && node.remoteMeta) {
+      const actualPath = node.path.replace(`remote:${node.remoteMeta.blogId}:`, '');
+      onPublishRemote?.(node.remoteMeta.blogId, actualPath);
     }
   };
 
@@ -223,9 +241,20 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                 style={{ color: 'var(--sidebar-icon-muted)', marginRight: '6px' }}
               />
             )}
-            <span className="truncate">
+            <span className="truncate" style={{ color: isRemote && node.type === 'folder' ? 'var(--accent-primary)' : undefined }}>
               {node.name.replace('.md', '')}
             </span>
+            {/* Rocket icon for remote files */}
+            {isRemote && node.type === 'file' && (
+              <button
+                onClick={handlePublishClick}
+                className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity hover:opacity-80"
+                style={{ color: 'var(--accent-primary)' }}
+                title="Publish changes"
+              >
+                <Rocket size={14} strokeWidth={1.5} />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -253,6 +282,8 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                   key={`${child.path}-${index}`}
                   node={child}
                   onFileClick={onFileClick}
+                  onRemoteFileClick={onRemoteFileClick}
+                  onPublishRemote={onPublishRemote}
                   onDelete={onDelete}
                   onMoveFile={onMoveFile}
                   onCreateInFolder={onCreateInFolder}
@@ -471,7 +502,10 @@ const InlineRenameInput: React.FC<InlineRenameInputProps> = ({ currentName, type
 
 interface FileTreeComponentProps {
   tree: FileNode | null;
+  remoteFolders?: FileNode[];
   onFileClick?: (path: string) => void;
+  onRemoteFileClick?: (blogId: string, path: string) => void;
+  onPublishRemote?: (blogId: string, path: string) => void;
   onDelete?: (path: string, type: 'file' | 'folder') => void;
   onMoveFile?: (sourcePath: string, destFolder: string) => void;
   onRename?: (oldPath: string, newName: string) => Promise<string | null>;
@@ -489,7 +523,10 @@ interface FileTreeComponentProps {
 
 export const FileTree: React.FC<FileTreeComponentProps> = ({
   tree,
+  remoteFolders,
   onFileClick,
+  onRemoteFileClick,
+  onPublishRemote,
   onDelete,
   onMoveFile,
   onRename,
@@ -561,6 +598,38 @@ export const FileTree: React.FC<FileTreeComponentProps> = ({
       className="w-full h-full overflow-y-auto pt-1"
       onContextMenu={handleSidebarContextMenu}
     >
+      {/* Remote blog folders at the top */}
+      {remoteFolders && remoteFolders.length > 0 && (
+        <>
+          {remoteFolders.map((folder, index) => (
+            <FileTreeNode
+              key={`remote-${folder.path}-${index}`}
+              node={folder}
+              onFileClick={onFileClick}
+              onRemoteFileClick={onRemoteFileClick}
+              onPublishRemote={onPublishRemote}
+              onDelete={onDelete}
+              onMoveFile={onMoveFile}
+              onCreateInFolder={onCreateInFolder}
+              level={0}
+              ancestorHasMoreSiblings={[]}
+              isLastChild={index === remoteFolders.length - 1 && (!tree?.children || tree.children.length === 0)}
+              draggedPath={draggedPath}
+              setDraggedPath={setDraggedPath}
+              inlineCreate={null}
+              renamingPath={renamingPath}
+              onStartRename={handleStartRename}
+              onRenameSubmit={handleRenameSubmit}
+              onRenameCancel={handleRenameCancel}
+              expandedPaths={expandedPaths}
+              onFolderToggle={onFolderToggle}
+            />
+          ))}
+          {/* Separator between remote and local files */}
+          <div style={{ height: '8px' }} />
+        </>
+      )}
+
       {/* Skip root folder, render its children directly - no header like Obsidian */}
       {(() => {
         const filteredChildren = tree.children?.filter(child => !child.name.startsWith('.')) || [];
@@ -571,6 +640,8 @@ export const FileTree: React.FC<FileTreeComponentProps> = ({
               key={`${child.path}-${index}`}
               node={child}
               onFileClick={onFileClick}
+              onRemoteFileClick={onRemoteFileClick}
+              onPublishRemote={onPublishRemote}
               onDelete={onDelete}
               onMoveFile={onMoveFile}
               onCreateInFolder={onCreateInFolder}

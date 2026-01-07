@@ -15,6 +15,7 @@ import { registerVaultHandlers } from './ipc/vaultHandlers';
 import { registerTagHandlers, setTagManager } from './ipc/tagHandlers';
 import { registerPublishHandlers, initializePublishManagers, setPublishTagManager } from './ipc/publishHandlers';
 import { registerContextMenuHandlers } from './ipc/contextMenuHandlers';
+import { registerCmsHandlers, initializeCmsManagers, loadBlogsIntoCache, cleanupCms } from './ipc/cmsHandlers';
 import { vaultManager } from './vault/VaultManager';
 import { TagManager } from './vault/TagManager';
 import { themeManager } from './ThemeManager';
@@ -70,6 +71,7 @@ registerVaultHandlers();
 registerTagHandlers();
 registerPublishHandlers();
 registerContextMenuHandlers();
+registerCmsHandlers();
 setTagManager(tagManager);
 setPublishTagManager(tagManager);
 
@@ -112,6 +114,10 @@ app.whenReady().then(async () => {
     const vaultPath = vaultManager.getVaultPath();
     if (vaultPath) {
       initializePublishManagers(vaultPath);
+
+      // Initialize CMS managers and load blogs into cache
+      initializeCmsManagers(vaultPath);
+      loadBlogsIntoCache();
     }
   } catch (error) {
     console.error('Failed to initialize vault:', error);
@@ -133,4 +139,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// Clean up on quit
+app.on('will-quit', () => {
+  cleanupCms();
 });

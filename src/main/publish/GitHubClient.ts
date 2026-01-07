@@ -163,6 +163,76 @@ export class GitHubClient {
   }
 
   /**
+   * List directory contents from repository
+   */
+  async listDirectory(
+    repo: string,
+    path: string,
+    branch: string
+  ): Promise<Array<{ name: string; path: string; sha: string; type: 'file' | 'dir' }>> {
+    const response = await fetch(
+      `${this.baseUrl}/repos/${repo}/contents/${path}?ref=${branch}`,
+      {
+        headers: this.getHeaders()
+      }
+    );
+
+    if (response.status === 404) {
+      return []; // Directory doesn't exist
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to list directory: ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    // If path points to a file, not a directory
+    if (!Array.isArray(data)) {
+      throw new Error(`Path "${path}" is not a directory`);
+    }
+
+    return data.map((item: any) => ({
+      name: item.name,
+      path: item.path,
+      sha: item.sha,
+      type: item.type === 'dir' ? 'dir' : 'file'
+    }));
+  }
+
+  /**
+   * Batch fetch multiple files from repository
+   * Uses individual requests (could be optimized with GraphQL later)
+   */
+  async batchGetFiles(
+    repo: string,
+    paths: string[],
+    branch: string
+  ): Promise<Map<string, { content: string; sha: string }>> {
+    const results = new Map<string, { content: string; sha: string }>();
+
+    // Fetch files in parallel with concurrency limit
+    const concurrencyLimit = 5;
+    for (let i = 0; i < paths.length; i += concurrencyLimit) {
+      const batch = paths.slice(i, i + concurrencyLimit);
+      const promises = batch.map(async (path) => {
+        try {
+          const result = await this.getFileContent(repo, path, branch);
+          if (result) {
+            results.set(path, result);
+          }
+        } catch (error) {
+          console.error(`Failed to fetch ${path}:`, error);
+        }
+      });
+      await Promise.all(promises);
+    }
+
+    return results;
+  }
+
+  /**
    * Get latest workflow run for a commit
    */
   async getWorkflowRunsForCommit(repo: string, commitSha: string): Promise<any[]> {
