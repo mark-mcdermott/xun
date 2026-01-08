@@ -13,6 +13,7 @@ import {
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { autocompletion, CompletionContext, Completion, startCompletion } from '@codemirror/autocomplete';
+import { spellCheckLinter, spellCheckTheme, spellCheckKeymap, spellCheckCompletionSource } from '../utils/spellcheck';
 
 // ============================================================================
 // Types for markdown element parsing
@@ -1866,16 +1867,20 @@ tags: [""]
         history(),
         blogBlockKeymap,
         tabKeymap,
+        spellCheckKeymap, // Cmd+. to show spelling suggestions
         keymap.of([...defaultKeymap, ...historyKeymap]),
         saveKeymap,
         markdown(),
         autocompletion({
-          override: [blogCompletionSource, atBlogCompletionSource],
+          override: [blogCompletionSource, atBlogCompletionSource, spellCheckCompletionSource],
           activateOnTyping: true,
           defaultKeymap: true
         }),
         // Pass stable boolean for hasPublish (actual callback is in ref)
         createLivePreviewPlugin(onPublishBlogBlockRef.current ? () => {} : undefined, blogsRef.current, isRemote),
+        // Spell check underlines (no tooltips)
+        spellCheckLinter,
+        spellCheckTheme,
         editorTheme,
         paddingTheme,
         updateListener,
