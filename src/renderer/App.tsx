@@ -41,6 +41,9 @@ import { PublishDialog } from './components/PublishDialog';
 import { PublishProgressPopup } from './components/PublishProgressPopup';
 import { SettingsPage } from './components/SettingsPage';
 import { MerchPage } from './components/MerchPage';
+import { ProductPage } from './components/ProductPage';
+import { CartPage } from './components/CartPage';
+import { CheckoutPage } from './components/CheckoutPage';
 import { CreateFileDialog } from './components/CreateFileDialog';
 import { VaultSelectionDialog } from './components/VaultSelectionDialog';
 import logoLeftFacing from './assets/pink-and-gray-mech-left.png';
@@ -63,6 +66,8 @@ const App: React.FC = () => {
   const [activeTabIndex, setActiveTabIndex] = useState<number>(-1);
   const [showSettings, setShowSettings] = useState(false);
   const [showMerch, setShowMerch] = useState(false);
+  const [storeView, setStoreView] = useState<'index' | 'product' | 'cart' | 'checkout'>('index');
+  const [currentProductSlug, setCurrentProductSlug] = useState<string | null>(null);
   const [dailyNoteDates, setDailyNoteDates] = useState<string[]>([]);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('editor');
@@ -689,6 +694,8 @@ const App: React.FC = () => {
     setActiveTabIndex(index);
     setShowSettings(false);
     setShowMerch(false);
+    setStoreView('index');
+    setCurrentProductSlug(null);
     if (tab) {
       if (tab.type === 'file') {
         pushToHistory({ type: 'file', path: tab.path });
@@ -1489,7 +1496,11 @@ const App: React.FC = () => {
                     borderTopRightRadius: '8px',
                     marginBottom: showMerch ? '0' : '-1px'
                   }}
-                  onClick={() => setShowMerch(false)}
+                  onClick={() => {
+                    setShowMerch(false);
+                    setStoreView('index');
+                    setCurrentProductSlug(null);
+                  }}
                 >
                   <span className="flex items-center gap-2 hover:opacity-60 transition-all" style={{ fontSize: '13.5px', color: showMerch ? 'var(--tab-inactive-text)' : 'var(--tab-active-text)' }}>
                     <Settings size={14} strokeWidth={1.5} style={{ marginRight: '5px' }} />
@@ -1503,6 +1514,8 @@ const App: React.FC = () => {
                       e.stopPropagation();
                       setShowSettings(false);
                       setShowMerch(false);
+                      setStoreView('index');
+                      setCurrentProductSlug(null);
                     }}
                   >
                     <X size={16} strokeWidth={2} />
@@ -1538,6 +1551,8 @@ const App: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowMerch(false);
+                      setStoreView('index');
+                      setCurrentProductSlug(null);
                     }}
                   >
                     <X size={16} strokeWidth={2} />
@@ -1846,7 +1861,38 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
 
         {showMerch ? (
-          <MerchPage />
+          storeView === 'product' && currentProductSlug ? (
+            <ProductPage
+              slug={currentProductSlug}
+              onBack={() => {
+                setStoreView('index');
+                setCurrentProductSlug(null);
+              }}
+              onCartClick={() => setStoreView('cart')}
+            />
+          ) : storeView === 'cart' ? (
+            <CartPage
+              onBack={() => setStoreView('index')}
+              onCheckout={() => setStoreView('checkout')}
+              onContinueShopping={() => setStoreView('index')}
+            />
+          ) : storeView === 'checkout' ? (
+            <CheckoutPage
+              onBack={() => setStoreView('cart')}
+              onComplete={() => {
+                setStoreView('index');
+                setShowMerch(false);
+              }}
+            />
+          ) : (
+            <MerchPage
+              onProductClick={(slug) => {
+                setCurrentProductSlug(slug);
+                setStoreView('product');
+              }}
+              onCartClick={() => setStoreView('cart')}
+            />
+          )
         ) : showSettings ? (
           <SettingsPage vaultPath={vaultPath} onVaultSwitch={handleVaultSwitchFromSettings} onBlogDeleted={refreshRemotePosts} onOpenMerch={() => setShowMerch(true)} />
         ) : activeFileTab ? (

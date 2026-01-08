@@ -748,7 +748,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
                 marginRight: '8px'
               }}
             />
-            <Button variant="secondary">
+            <Button variant="secondary" onClick={() => { /* TODO: Hook up to Stripe */ }}>
               Tip
             </Button>
           </div>
