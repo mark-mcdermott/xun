@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Trash2, Edit2, Github, Cloud, Power } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Edit2, Github, Cloud, Power, Coffee } from 'lucide-react';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -710,6 +710,40 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
               ))}
             </div>
           )}
+        </div>
+
+        {/* Support Section */}
+        <div style={{ marginTop: '48px', paddingTop: '32px', borderTop: '1px solid var(--border-primary)' }}>
+          <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+            <Coffee size={20} strokeWidth={1.5} style={{ color: 'var(--text-muted)', marginRight: '8px' }} />
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+              Xun is free, but you can support by purchasing some Xun merch or buying me a coffee if you're enjoying it.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: '14px', color: 'var(--text-muted)', marginRight: '4px' }}>$</span>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              defaultValue="5"
+              className="hide-number-spinners"
+              style={{
+                width: '48px',
+                padding: '8px 0',
+                fontSize: '14px',
+                border: '1px solid var(--input-border)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                borderRadius: '6px',
+                textAlign: 'center',
+                marginRight: '8px'
+              }}
+            />
+            <Button variant="secondary">
+              Tip
+            </Button>
+          </div>
         </div>
       </div>
     </div>

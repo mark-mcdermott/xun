@@ -788,3 +788,14 @@ input:focus, select:focus, textarea:focus {
 .cm-completionIcon {
   display: none !important;
 }
+
+/* Hide number input spinners */
+.hide-number-spinners::-webkit-outer-spin-button,
+.hide-number-spinners::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hide-number-spinners {
+  -moz-appearance: textfield;
+}

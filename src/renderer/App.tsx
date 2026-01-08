@@ -24,7 +24,8 @@ import {
   Hash,
   Eye,
   Type,
-  CaseSensitive
+  CaseSensitive,
+  ShoppingCart
 } from 'lucide-react';
 import { useVault } from './hooks/useVault';
 import { useTags } from './hooks/useTags';
@@ -1626,6 +1627,10 @@ const App: React.FC = () => {
           </button>
           <button className="p-2 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded transition-all" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Tags" onClick={() => setSidebarTab('tags')}>
             <Code size={20} strokeWidth={1.5} />
+          </button>
+          <hr style={{ width: '24px', border: 'none', borderTop: '1px solid var(--border-primary)' }} />
+          <button className="p-2 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded transition-all" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Shop" onClick={() => window.open('https://shop.xun.app', '_blank')}>
+            <ShoppingCart size={19} strokeWidth={1.5} />
           </button>
         </div>
 
