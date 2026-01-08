@@ -490,7 +490,7 @@ export const spellCheckLinter = linter(async (view) => {
 
   return diagnostics;
 }, {
-  delay: 1000, // Longer delay for API calls
+  delay: 3000, // 3 second delay for API calls
   tooltipFilter: () => []
 });
 
