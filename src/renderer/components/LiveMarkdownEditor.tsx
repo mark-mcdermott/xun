@@ -14,6 +14,120 @@ import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { autocompletion, CompletionContext, Completion, startCompletion } from '@codemirror/autocomplete';
 import { spellCheckLinter, spellCheckTheme, spellCheckKeymap, spellCheckCompletionSource } from '../utils/spellcheck';
+import hljs from 'highlight.js/lib/core';
+// Import common languages
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import css from 'highlight.js/lib/languages/css';
+import json from 'highlight.js/lib/languages/json';
+import bash from 'highlight.js/lib/languages/bash';
+import xml from 'highlight.js/lib/languages/xml';
+import sql from 'highlight.js/lib/languages/sql';
+import java from 'highlight.js/lib/languages/java';
+import csharp from 'highlight.js/lib/languages/csharp';
+import cpp from 'highlight.js/lib/languages/cpp';
+import go from 'highlight.js/lib/languages/go';
+import rust from 'highlight.js/lib/languages/rust';
+import ruby from 'highlight.js/lib/languages/ruby';
+import php from 'highlight.js/lib/languages/php';
+import swift from 'highlight.js/lib/languages/swift';
+import kotlin from 'highlight.js/lib/languages/kotlin';
+import yaml from 'highlight.js/lib/languages/yaml';
+import markdown_ from 'highlight.js/lib/languages/markdown';
+
+// Register languages
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('js', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('ts', typescript);
+hljs.registerLanguage('python', python);
+hljs.registerLanguage('py', python);
+hljs.registerLanguage('css', css);
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('bash', bash);
+hljs.registerLanguage('sh', bash);
+hljs.registerLanguage('shell', bash);
+hljs.registerLanguage('html', xml);
+hljs.registerLanguage('xml', xml);
+hljs.registerLanguage('sql', sql);
+hljs.registerLanguage('java', java);
+hljs.registerLanguage('csharp', csharp);
+hljs.registerLanguage('cs', csharp);
+hljs.registerLanguage('cpp', cpp);
+hljs.registerLanguage('c++', cpp);
+hljs.registerLanguage('c', cpp);
+hljs.registerLanguage('go', go);
+hljs.registerLanguage('rust', rust);
+hljs.registerLanguage('rs', rust);
+hljs.registerLanguage('ruby', ruby);
+hljs.registerLanguage('rb', ruby);
+hljs.registerLanguage('php', php);
+hljs.registerLanguage('swift', swift);
+hljs.registerLanguage('kotlin', kotlin);
+hljs.registerLanguage('kt', kotlin);
+hljs.registerLanguage('yaml', yaml);
+hljs.registerLanguage('yml', yaml);
+hljs.registerLanguage('markdown', markdown_);
+hljs.registerLanguage('md', markdown_);
+
+// Helper to get syntax highlighting tokens for a line of code
+interface SyntaxToken {
+  from: number;
+  to: number;
+  className: string;
+}
+
+function getSyntaxTokens(code: string, language: string, lineOffset: number): SyntaxToken[] {
+  const tokens: SyntaxToken[] = [];
+
+  if (!language || !hljs.getLanguage(language)) {
+    return tokens;
+  }
+
+  try {
+    const result = hljs.highlight(code, { language, ignoreIllegals: true });
+    // Parse the HTML result to extract tokens
+    // highlight.js returns HTML like: <span class="hljs-keyword">const</span> x = <span class="hljs-number">1</span>
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${result.value}</div>`, 'text/html');
+
+    let currentPos = 0;
+    const walk = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        currentPos += node.textContent?.length || 0;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as Element;
+        const className = element.className;
+        const startPos = currentPos;
+
+        // Process children
+        for (const child of Array.from(node.childNodes)) {
+          walk(child);
+        }
+
+        if (className && startPos < currentPos) {
+          tokens.push({
+            from: lineOffset + startPos,
+            to: lineOffset + currentPos,
+            className: className
+          });
+        }
+      }
+    };
+
+    const container = doc.body.firstChild;
+    if (container) {
+      for (const child of Array.from(container.childNodes)) {
+        walk(child);
+      }
+    }
+  } catch (e) {
+    // Ignore highlighting errors
+  }
+
+  return tokens;
+}
 
 // ============================================================================
 // Types for markdown element parsing
@@ -690,11 +804,14 @@ function createDecorations(
   blogs?: Array<{ id: string; name: string }>,
   isRemote?: boolean
 ): DecorationSet {
-  const cursorPos = view.state.field(cursorPositionField);
-  const decorations: Range<Decoration>[] = [];
-  const doc = view.state.doc;
+  try {
+    const cursorPos = view.state.field(cursorPositionField) ?? -1;
+    const decorations: Range<Decoration>[] = [];
+    const doc = view.state.doc;
 
   let inCodeBlock = false;
+  let codeBlockStartLine = -1;
+  let codeBlockLang = '';
   let inBlogBlock = false;
   let inBlogFrontmatter = false;
   let blogFrontmatterDashCount = 0;
@@ -883,24 +1000,85 @@ function createDecorations(
 
     // Track code block state
     if (lineText.startsWith('```')) {
-      inCodeBlock = !inCodeBlock;
-      if (!cursorOnThisLine) {
-        const lang = lineText.slice(3);
-        const label = lang ? `Code (${lang})` : 'Code';
+      if (!inCodeBlock) {
+        // Opening ```
+        inCodeBlock = true;
+        codeBlockStartLine = i;
+        codeBlockLang = lineText.slice(3).trim();
+      } else {
+        // Closing ``` - now we know the full extent of the code block
+        inCodeBlock = false;
+        const codeBlockEndLine = i;
+        const codeLineCount = codeBlockEndLine - codeBlockStartLine - 1;
+
+        // Hide the opening ``` line (replace with language label or nothing)
+        const openingLine = doc.line(codeBlockStartLine);
+        if (!(cursorPos >= openingLine.from && cursorPos <= openingLine.to)) {
+          if (codeBlockLang) {
+            decorations.push(
+              Decoration.replace({
+                widget: new SimpleTextWidget(`<span class="cm-code-block-label">${codeBlockLang}</span>`)
+              }).range(openingLine.from, openingLine.to)
+            );
+          } else {
+            decorations.push(
+              Decoration.replace({}).range(openingLine.from, openingLine.to)
+            );
+          }
+          decorations.push(
+            Decoration.line({ class: 'cm-hidden-line' }).range(openingLine.from)
+          );
+        }
+
+        // Hide the closing ``` line (always hide, even when cursor is on it)
         decorations.push(
-          Decoration.replace({
-            widget: new SimpleTextWidget(`<span style="color: #9ca3af; font-size: 0.75em;">${label}</span>`)
-          }).range(line.from, line.to)
+          Decoration.replace({}).range(line.from, line.to)
         );
+        decorations.push(
+          Decoration.line({ class: 'cm-hidden-line' }).range(line.from)
+        );
+
+        // Style the content lines with proper first/middle/last classes and syntax highlighting
+        for (let j = codeBlockStartLine + 1; j < codeBlockEndLine; j++) {
+          const contentLine = doc.line(j);
+          const isFirst = j === codeBlockStartLine + 1;
+          const isLast = j === codeBlockEndLine - 1;
+          const isSingle = codeLineCount === 1;
+
+          let lineClass = 'cm-code-block-middle';
+          if (isSingle) {
+            lineClass = 'cm-code-block-single';
+          } else if (isFirst) {
+            lineClass = 'cm-code-block-first';
+          } else if (isLast) {
+            lineClass = 'cm-code-block-last';
+          }
+
+          decorations.push(
+            Decoration.line({ class: lineClass }).range(contentLine.from)
+          );
+
+          // Apply syntax highlighting
+          if (codeBlockLang && contentLine.from < contentLine.to) {
+            const tokens = getSyntaxTokens(contentLine.text, codeBlockLang, contentLine.from);
+            for (const token of tokens) {
+              if (token.from < token.to) {
+                decorations.push(
+                  Decoration.mark({ class: token.className }).range(token.from, token.to)
+                );
+              }
+            }
+          }
+        }
+
+        codeBlockStartLine = -1;
+        codeBlockLang = '';
       }
       continue;
     }
 
-    // Inside code block - apply code styling
+    // Inside code block - skip normal processing (decorations added when block closes)
     if (inCodeBlock) {
-      decorations.push(
-        Decoration.mark({ class: 'cm-code-block-line' }).range(line.from, line.to)
-      );
       continue;
     }
 
@@ -1056,8 +1234,9 @@ function createDecorations(
         }
       }
 
-      // Hide markers unless cursor is in this element
-      if (!cursorInElement && el.type !== 'tag') {
+      // Hide markers: always for inline code, otherwise only when cursor is outside
+      const shouldHideMarkers = el.type === 'code' || (!cursorInElement && el.type !== 'tag');
+      if (shouldHideMarkers) {
         // Hide opening marker
         if (el.openMarker.from < el.openMarker.to) {
           decorations.push(
@@ -1074,10 +1253,20 @@ function createDecorations(
     }
   }
 
-  // Sort decorations by from position (required by CodeMirror)
-  decorations.sort((a, b) => a.from - b.from);
+  // Filter out any invalid decorations and sort by from position (required by CodeMirror)
+  const validDecorations = decorations.filter(d =>
+    typeof d.from === 'number' &&
+    typeof d.to === 'number' &&
+    d.from >= 0 &&
+    d.to >= d.from
+  );
+  validDecorations.sort((a, b) => a.from - b.from);
 
-  return Decoration.set(decorations, true);
+  return Decoration.set(validDecorations, true);
+  } catch (e) {
+    console.error('Error in createDecorations:', e);
+    return Decoration.none;
+  }
 }
 
 // ============================================================================
@@ -1333,12 +1522,102 @@ const editorTheme = EditorView.theme({
     gap: '12px'
   },
 
-  // Code block lines
-  '.cm-code-block-line': {
+  // Code block container and lines
+  '.cm-code-block-first': {
     backgroundColor: '#f3f4f6',
-    fontFamily: 'monospace',
-    fontSize: '0.9em'
-  }
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
+    fontSize: '0.875em',
+    lineHeight: '1.4',
+    borderTopLeftRadius: '6px',
+    borderTopRightRadius: '6px',
+    paddingTop: '12px',
+    paddingLeft: '16px',
+    paddingRight: '16px',
+    marginLeft: '-16px',
+    marginRight: '25px'
+  },
+  '.cm-code-block-middle': {
+    backgroundColor: '#f3f4f6',
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
+    fontSize: '0.875em',
+    lineHeight: '1.4',
+    paddingLeft: '16px',
+    paddingRight: '16px',
+    marginLeft: '-16px',
+    marginRight: '25px'
+  },
+  '.cm-code-block-last': {
+    backgroundColor: '#f3f4f6',
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
+    fontSize: '0.875em',
+    lineHeight: '1.4',
+    borderBottomLeftRadius: '6px',
+    borderBottomRightRadius: '6px',
+    paddingBottom: '12px',
+    paddingLeft: '16px',
+    paddingRight: '16px',
+    marginLeft: '-16px',
+    marginRight: '25px'
+  },
+  '.cm-code-block-single': {
+    backgroundColor: '#f3f4f6',
+    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
+    fontSize: '0.875em',
+    lineHeight: '1.4',
+    borderRadius: '6px',
+    padding: '12px 16px',
+    marginLeft: '-16px',
+    marginRight: '25px'
+  },
+  '.cm-code-block-label': {
+    color: '#6b7280',
+    fontSize: '0.75em',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
+    backgroundColor: '#e5e7eb',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    marginBottom: '4px',
+    display: 'inline-block'
+  },
+
+  // Syntax highlighting colors (GitHub-inspired theme)
+  '.hljs-keyword': { color: '#cf222e' },
+  '.hljs-built_in': { color: '#cf222e' },
+  '.hljs-type': { color: '#cf222e' },
+  '.hljs-literal': { color: '#0550ae' },
+  '.hljs-number': { color: '#0550ae' },
+  '.hljs-operator': { color: '#24292f' },
+  '.hljs-punctuation': { color: '#24292f' },
+  '.hljs-property': { color: '#0550ae' },
+  '.hljs-regexp': { color: '#0a3069' },
+  '.hljs-string': { color: '#0a3069' },
+  '.hljs-char.escape_': { color: '#0a3069' },
+  '.hljs-subst': { color: '#24292f' },
+  '.hljs-symbol': { color: '#0a3069' },
+  '.hljs-variable': { color: '#953800' },
+  '.hljs-variable.language_': { color: '#cf222e' },
+  '.hljs-variable.constant_': { color: '#0550ae' },
+  '.hljs-title': { color: '#8250df' },
+  '.hljs-title.class_': { color: '#953800' },
+  '.hljs-title.function_': { color: '#8250df' },
+  '.hljs-params': { color: '#24292f' },
+  '.hljs-comment': { color: '#6e7781', fontStyle: 'italic' },
+  '.hljs-doctag': { color: '#cf222e' },
+  '.hljs-meta': { color: '#0550ae' },
+  '.hljs-section': { color: '#0550ae', fontWeight: 'bold' },
+  '.hljs-tag': { color: '#116329' },
+  '.hljs-name': { color: '#116329' },
+  '.hljs-attr': { color: '#0550ae' },
+  '.hljs-attribute': { color: '#0550ae' },
+  '.hljs-selector-id': { color: '#0550ae' },
+  '.hljs-selector-class': { color: '#6639ba' },
+  '.hljs-selector-attr': { color: '#0550ae' },
+  '.hljs-selector-pseudo': { color: '#0550ae' },
+  '.hljs-template-tag': { color: '#8250df' },
+  '.hljs-template-variable': { color: '#953800' },
+  '.hljs-addition': { color: '#116329', backgroundColor: '#dafbe1' },
+  '.hljs-deletion': { color: '#82071e', backgroundColor: '#ffebe9' },
+  '.hljs-link': { color: '#0a3069', textDecoration: 'underline' }
 });
 
 // ============================================================================
@@ -1878,7 +2157,7 @@ tags: [""]
         }),
         // Pass stable boolean for hasPublish (actual callback is in ref)
         createLivePreviewPlugin(onPublishBlogBlockRef.current ? () => {} : undefined, blogsRef.current, isRemote),
-        // Spell check underlines (no tooltips)
+        // Spell check underlines
         spellCheckLinter,
         spellCheckTheme,
         editorTheme,

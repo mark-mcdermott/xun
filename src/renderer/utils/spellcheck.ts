@@ -498,15 +498,11 @@ export const spellCheckLinter = linter(async (view) => {
 export const spellCheckTheme = EditorView.theme({
   '.cm-lintRange-warning': {
     textDecoration: 'underline wavy #ef4444',
-    textDecorationSkipInk: 'none',
-    backgroundImage: 'none !important',
-    backgroundColor: 'transparent !important'
+    textDecorationSkipInk: 'none'
   },
   '.cm-lintRange-info': {
     textDecoration: 'underline wavy #f59e0b',
-    textDecorationSkipInk: 'none',
-    backgroundImage: 'none !important',
-    backgroundColor: 'transparent !important'
+    textDecorationSkipInk: 'none'
   },
   // Hide gutter markers
   '.cm-lint-marker-warning, .cm-lint-marker-info': {
