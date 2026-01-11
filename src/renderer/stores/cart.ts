@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 export interface CartItem {
   productId: string;
   variantId: string;
+  printfulSyncVariantId: string;
   quantity: number;
   name: string;
   size: string;

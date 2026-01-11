@@ -44,6 +44,7 @@ import { MerchPage } from './components/MerchPage';
 import { ProductPage } from './components/ProductPage';
 import { CartPage } from './components/CartPage';
 import { CheckoutPage } from './components/CheckoutPage';
+import { useCart } from './stores/cart';
 import { CreateFileDialog } from './components/CreateFileDialog';
 import { VaultSelectionDialog } from './components/VaultSelectionDialog';
 import logoLeftFacing from './assets/pink-and-gray-mech-left.png';
@@ -66,8 +67,43 @@ const App: React.FC = () => {
   const [activeTabIndex, setActiveTabIndex] = useState<number>(-1);
   const [showSettings, setShowSettings] = useState(false);
   const [showMerch, setShowMerch] = useState(false);
+  const sidebarCartCount = useCart((state) => state.getItemCount());
   const [storeView, setStoreView] = useState<'index' | 'product' | 'cart' | 'checkout'>('index');
-  const [currentProductSlug, setCurrentProductSlug] = useState<string | null>(null);
+  const [storeHistory, setStoreHistory] = useState<Array<{ view: 'index' | 'product' | 'cart' | 'checkout'; slug?: string }>>([{ view: 'index' }]);
+  const [storeHistoryIndex, setStoreHistoryIndex] = useState(0);
+  const [currentProductSlug, setCurrentProductSlug] = useState<string | null>('xun-mech-hoodie');
+  const [productInitialSize, setProductInitialSize] = useState<string | undefined>(undefined);
+  const [productInitialColor, setProductInitialColor] = useState<string | undefined>(undefined);
+
+  const canGoBackStore = storeHistoryIndex > 0;
+  const canGoForwardStore = storeHistoryIndex < storeHistory.length - 1;
+
+  const navigateStore = (view: 'index' | 'product' | 'cart' | 'checkout', slug?: string) => {
+    const newEntry = { view, slug };
+    const newHistory = [...storeHistory.slice(0, storeHistoryIndex + 1), newEntry];
+    setStoreHistory(newHistory);
+    setStoreHistoryIndex(newHistory.length - 1);
+    setStoreView(view);
+    if (slug) setCurrentProductSlug(slug);
+  };
+
+  const goBackStore = () => {
+    if (!canGoBackStore) return;
+    const newIndex = storeHistoryIndex - 1;
+    const entry = storeHistory[newIndex];
+    setStoreHistoryIndex(newIndex);
+    setStoreView(entry.view);
+    if (entry.slug) setCurrentProductSlug(entry.slug);
+  };
+
+  const goForwardStore = () => {
+    if (!canGoForwardStore) return;
+    const newIndex = storeHistoryIndex + 1;
+    const entry = storeHistory[newIndex];
+    setStoreHistoryIndex(newIndex);
+    setStoreView(entry.view);
+    if (entry.slug) setCurrentProductSlug(entry.slug);
+  };
   const [dailyNoteDates, setDailyNoteDates] = useState<string[]>([]);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [editorViewMode, setEditorViewMode] = useState<EditorViewMode>('editor');
@@ -694,8 +730,8 @@ const App: React.FC = () => {
     setActiveTabIndex(index);
     setShowSettings(false);
     setShowMerch(false);
-    setStoreView('index');
-    setCurrentProductSlug(null);
+    setStoreView('product');
+    setCurrentProductSlug('xun-mech-hoodie');
     if (tab) {
       if (tab.type === 'file') {
         pushToHistory({ type: 'file', path: tab.path });
@@ -1498,8 +1534,8 @@ const App: React.FC = () => {
                   }}
                   onClick={() => {
                     setShowMerch(false);
-                    setStoreView('index');
-                    setCurrentProductSlug(null);
+                    setStoreView('product');
+                    setCurrentProductSlug('xun-mech-hoodie');
                   }}
                 >
                   <span className="flex items-center gap-2 hover:opacity-60 transition-all" style={{ fontSize: '13.5px', color: showMerch ? 'var(--tab-inactive-text)' : 'var(--tab-active-text)' }}>
@@ -1514,8 +1550,8 @@ const App: React.FC = () => {
                       e.stopPropagation();
                       setShowSettings(false);
                       setShowMerch(false);
-                      setStoreView('index');
-                      setCurrentProductSlug(null);
+                      setStoreView('product');
+                      setCurrentProductSlug('xun-mech-hoodie');
                     }}
                   >
                     <X size={16} strokeWidth={2} />
@@ -1551,8 +1587,8 @@ const App: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowMerch(false);
-                      setStoreView('index');
-                      setCurrentProductSlug(null);
+                      setStoreView('product');
+                      setCurrentProductSlug('xun-mech-hoodie');
                     }}
                   >
                     <X size={16} strokeWidth={2} />
@@ -1684,8 +1720,29 @@ const App: React.FC = () => {
             <Code size={20} strokeWidth={1.5} />
           </button>
           <hr style={{ width: '24px', border: 'none', borderTop: '1px solid var(--border-primary)' }} />
-          <button className="p-2 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded transition-all" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Merch" onClick={() => setShowMerch(true)}>
+          <button className="p-2 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded transition-all relative" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Merch" onClick={() => { setShowMerch(true); setStoreView('index'); }}>
             <ShoppingCart size={19} strokeWidth={1.5} />
+            {!showMerch && sidebarCartCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '2px',
+                  backgroundColor: 'var(--accent-primary)',
+                  color: '#fff',
+                  fontSize: '9px',
+                  fontWeight: 600,
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {sidebarCartCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -1863,38 +1920,58 @@ const App: React.FC = () => {
         {showMerch ? (
           storeView === 'product' && currentProductSlug ? (
             <ProductPage
+              key={`${currentProductSlug}-${productInitialSize}-${productInitialColor}`}
               slug={currentProductSlug}
-              onBack={() => {
-                setStoreView('index');
-                setCurrentProductSlug(null);
-              }}
-              onCartClick={() => setStoreView('cart')}
+              onCartClick={() => navigateStore('cart')}
+              onCheckout={() => navigateStore('checkout')}
+              initialSize={productInitialSize}
+              initialColor={productInitialColor}
+              canGoBack={canGoBackStore}
+              canGoForward={canGoForwardStore}
+              goBack={goBackStore}
+              goForward={goForwardStore}
             />
           ) : storeView === 'cart' ? (
             <CartPage
-              onBack={() => setStoreView('index')}
-              onCheckout={() => setStoreView('checkout')}
-              onContinueShopping={() => setStoreView('index')}
+              onCheckout={() => navigateStore('checkout')}
+              onContinueShopping={() => navigateStore('index')}
+              onProductClick={(productId, size, color) => {
+                setProductInitialSize(size);
+                setProductInitialColor(color);
+                navigateStore('product', productId);
+              }}
+              canGoBack={canGoBackStore}
+              canGoForward={canGoForwardStore}
+              goBack={goBackStore}
+              goForward={goForwardStore}
             />
           ) : storeView === 'checkout' ? (
             <CheckoutPage
-              onBack={() => setStoreView('cart')}
               onComplete={() => {
+                setStoreHistory([{ view: 'index' }]);
+                setStoreHistoryIndex(0);
                 setStoreView('index');
                 setShowMerch(false);
               }}
+              canGoBack={canGoBackStore}
+              canGoForward={canGoForwardStore}
+              goBack={goBackStore}
+              goForward={goForwardStore}
             />
           ) : (
             <MerchPage
               onProductClick={(slug) => {
-                setCurrentProductSlug(slug);
-                setStoreView('product');
+                navigateStore('product', slug);
               }}
-              onCartClick={() => setStoreView('cart')}
+              onCartClick={() => navigateStore('cart')}
+              canGoBack={canGoBackStore}
+              canGoForward={canGoForwardStore}
+              goBack={goBackStore}
+              goForward={goForwardStore}
             />
           )
         ) : showSettings ? (
-          <SettingsPage vaultPath={vaultPath} onVaultSwitch={handleVaultSwitchFromSettings} onBlogDeleted={refreshRemotePosts} onOpenMerch={() => setShowMerch(true)} />
+          <SettingsPage vaultPath={vaultPath} onVaultSwitch={handleVaultSwitchFromSettings} onBlogDeleted={refreshRemotePosts} onOpenMerch={() => { setShowMerch(true); setStoreView('index'); }} />
         ) : activeFileTab ? (
           <>
             {/* Navigation bar with breadcrumb */}

@@ -14,6 +14,7 @@ export interface Product {
   description: string;
   price: number; // in cents
   images: string[];
+  colorImages?: Record<string, string[]>; // color name -> array of image URLs
   category: 'tshirt' | 'hoodie' | 'sticker';
   printfulProductId: number;
   variants: ProductVariant[];
@@ -23,72 +24,146 @@ export const products: Product[] = [
   {
     id: 'xun-mech-hoodie',
     slug: 'xun-mech-hoodie',
-    name: 'Xun Mech Hoodie',
-    description: 'A cozy premium hoodie featuring the Xun mech logo. Perfect for late-night coding sessions.',
-    price: 4500, // $45.00
-    images: [], // Placeholder - will add actual images later
+    name: 'Soft Mech Pullover Hoodie',
+    description: 'Super comfy pullover hoodie. The front has the Xun mech small saying, "form is emptiness, emptiness is form". The back has the mech large with "XUN" under it.',
+    price: 3500, // $35.00
+    images: [
+      new URL('../assets/merch/hoodie-black-front.png', import.meta.url).href,
+    ],
+    colorImages: {
+      'Black': [
+        new URL('../assets/merch/hoodie-black-front.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-black-back.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-black-left.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-black-front-solo.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-black-back-solo.png', import.meta.url).href,
+      ],
+      'Heather Navy': [
+        new URL('../assets/merch/hoodie-navy-front.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-navy-back.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-navy-left.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-navy-front-solo.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-navy-back-solo.png', import.meta.url).href,
+      ],
+      'Heather Forest': [
+        new URL('../assets/merch/hoodie-forest-front.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-forest-back.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-forest-left.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-forest-front-solo.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-forest-back-solo.png', import.meta.url).href,
+      ],
+      'White': [
+        new URL('../assets/merch/hoodie-white-front.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-white-back.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-white-left.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-white-front-solo.png', import.meta.url).href,
+        new URL('../assets/merch/hoodie-white-back-solo.png', import.meta.url).href,
+      ],
+    },
     category: 'hoodie',
     printfulProductId: 0,
     variants: [
-      { id: 'xun-mech-hoodie-black-s', size: 'S', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-hoodie-black-m', size: 'M', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-hoodie-black-l', size: 'L', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-hoodie-black-xl', size: 'XL', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-hoodie-white-s', size: 'S', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-hoodie-white-m', size: 'M', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-hoodie-white-l', size: 'L', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-hoodie-white-xl', size: 'XL', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
+      // Black
+      { id: 'hoodie-black-s', size: 'S', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '6906a05f07fa2', inStock: true },
+      { id: 'hoodie-black-m', size: 'M', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '6906a05f07242', inStock: true },
+      { id: 'hoodie-black-l', size: 'L', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '6906a05f07298', inStock: true },
+      { id: 'hoodie-black-xl', size: 'XL', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '6906a05f072a3', inStock: true },
+      // Heather Forest
+      { id: 'hoodie-forest-s', size: 'S', color: 'Heather Forest', colorHex: '#2d4a3e', printfulSyncVariantId: '6906a05f07416', inStock: true },
+      { id: 'hoodie-forest-m', size: 'M', color: 'Heather Forest', colorHex: '#2d4a3e', printfulSyncVariantId: '6906a05f07525', inStock: true },
+      { id: 'hoodie-forest-l', size: 'L', color: 'Heather Forest', colorHex: '#2d4a3e', printfulSyncVariantId: '6906a05f07561', inStock: true },
+      { id: 'hoodie-forest-xl', size: 'XL', color: 'Heather Forest', colorHex: '#2d4a3e', printfulSyncVariantId: '6906a05f07512', inStock: true },
+      // Heather Navy
+      { id: 'hoodie-navy-s', size: 'S', color: 'Heather Navy', colorHex: '#374151', printfulSyncVariantId: '6906a05f07379', inStock: true },
+      { id: 'hoodie-navy-m', size: 'M', color: 'Heather Navy', colorHex: '#374151', printfulSyncVariantId: '6906a05f073a5', inStock: true },
+      { id: 'hoodie-navy-l', size: 'L', color: 'Heather Navy', colorHex: '#374151', printfulSyncVariantId: '6906a05f07406', inStock: true },
+      { id: 'hoodie-navy-xl', size: 'XL', color: 'Heather Navy', colorHex: '#374151', printfulSyncVariantId: '6906a05f07452', inStock: true },
+      // White
+      { id: 'hoodie-white-s', size: 'S', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6906a05f07642', inStock: true },
+      { id: 'hoodie-white-m', size: 'M', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6906a05f076a5', inStock: true },
+      { id: 'hoodie-white-l', size: 'L', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6906a05f07707', inStock: true },
+      { id: 'hoodie-white-xl', size: 'XL', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6906a05f07737', inStock: true },
     ]
   },
   {
-    id: 'xun-mech-tee',
-    slug: 'xun-mech-tee',
-    name: 'Xun Mech T-Shirt',
-    description: 'A comfortable cotton t-shirt featuring the Xun mech logo. Show your love for note-taking.',
-    price: 2500, // $25.00
-    images: [],
-    category: 'tshirt',
+    id: 'xun-youth-hoodie',
+    slug: 'xun-youth-hoodie',
+    name: 'Pink Mech Pullover Hoodie',
+    description: 'Beautiful light pink pullover hoodie. The front has the Xun mech small saying, "form is emptiness, emptiness is form". The back has the mech large with "XUN" under it.',
+    price: 2800, // $28.00
+    images: [
+      new URL('../assets/merch/youth-hoodie-pink-front-closeup.png', import.meta.url).href,
+    ],
+    colorImages: {
+      'Light Pink': [
+        new URL('../assets/merch/youth-hoodie-pink-front-closeup.png', import.meta.url).href,
+        new URL('../assets/merch/youth-hoodie-pink-back-closeup.png', import.meta.url).href,
+        new URL('../assets/merch/youth-hoodie-pink-front-solo.png', import.meta.url).href,
+        new URL('../assets/merch/youth-hoodie-pink-back-solo.png', import.meta.url).href,
+        new URL('../assets/merch/youth-hoodie-pink-details.png', import.meta.url).href,
+      ],
+    },
+    category: 'hoodie',
     printfulProductId: 0,
     variants: [
-      { id: 'xun-mech-tee-black-s', size: 'S', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-black-m', size: 'M', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-black-l', size: 'L', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-black-xl', size: 'XL', color: 'Black', colorHex: '#1a1a1a', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-white-s', size: 'S', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-white-m', size: 'M', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-white-l', size: 'L', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-white-xl', size: 'XL', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-gray-s', size: 'S', color: 'Heather Gray', colorHex: '#9ca3af', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-gray-m', size: 'M', color: 'Heather Gray', colorHex: '#9ca3af', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-gray-l', size: 'L', color: 'Heather Gray', colorHex: '#9ca3af', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-tee-gray-xl', size: 'XL', color: 'Heather Gray', colorHex: '#9ca3af', printfulSyncVariantId: '', inStock: true },
+      // Light Pink
+      { id: 'youth-hoodie-pink-xs', size: 'XS', color: 'Light Pink', colorHex: '#FFB6C1', printfulSyncVariantId: '6961d95013e4d1', inStock: true },
+      { id: 'youth-hoodie-pink-s', size: 'S', color: 'Light Pink', colorHex: '#FFB6C1', printfulSyncVariantId: '6961d95013e572', inStock: true },
+      { id: 'youth-hoodie-pink-m', size: 'M', color: 'Light Pink', colorHex: '#FFB6C1', printfulSyncVariantId: '6961d95013e5f2', inStock: true },
+      { id: 'youth-hoodie-pink-l', size: 'L', color: 'Light Pink', colorHex: '#FFB6C1', printfulSyncVariantId: '6961d95013e676', inStock: true },
+      { id: 'youth-hoodie-pink-xl', size: 'XL', color: 'Light Pink', colorHex: '#FFB6C1', printfulSyncVariantId: '6961d95013e707', inStock: true },
     ]
   },
   {
-    id: 'xun-mech-sticker-pack',
-    slug: 'xun-mech-sticker-pack',
-    name: 'Xun Mech Sticker Pack',
-    description: 'A pack of high-quality vinyl stickers featuring various Xun mech designs. Perfect for laptops and water bottles.',
-    price: 800, // $8.00
-    images: [],
+    id: 'xun-mech-sticker',
+    slug: 'xun-mech-sticker',
+    name: 'Xun Mech Form Is Emptiness Stickers',
+    description: 'High-quality kiss-cut stickers featuring the Xun mech with "form is emptiness, emptiness is form". Available in 3 sizes. Perfect for laptops, water bottles, and notebooks.',
+    price: 350, // $3.50 (5.5" is $4.00)
+    images: [
+      new URL('../assets/merch/sticker-4x4-default.png', import.meta.url).href,
+    ],
+    colorImages: {
+      'White': [
+        new URL('../assets/merch/sticker-4x4-default.png', import.meta.url).href,
+        new URL('../assets/merch/sticker-4x4-front.png', import.meta.url).href,
+        new URL('../assets/merch/sticker-4x4-lifestyle.png', import.meta.url).href,
+        new URL('../assets/merch/sticker-3x3-default.png', import.meta.url).href,
+        new URL('../assets/merch/sticker-5x5-default.png', import.meta.url).href,
+      ],
+    },
     category: 'sticker',
     printfulProductId: 0,
     variants: [
-      { id: 'xun-mech-sticker-pack-standard', size: 'Standard', color: 'Multi', colorHex: '#ec4899', printfulSyncVariantId: '', inStock: true },
+      { id: 'sticker-3x3', size: '3"×3"', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6962c110e371f3', inStock: true },
+      { id: 'sticker-4x4', size: '4"×4"', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6962c110e37255', inStock: true },
+      { id: 'sticker-5x5', size: '5.5"×5.5"', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6962c110e372a6', inStock: true },
     ]
   },
   {
-    id: 'xun-mech-die-cut-sticker',
-    slug: 'xun-mech-die-cut-sticker',
-    name: 'Xun Mech Die-Cut Sticker',
-    description: 'A large die-cut vinyl sticker of the Xun mech. Weatherproof and durable.',
-    price: 500, // $5.00
-    images: [],
+    id: 'xun-mech-sticker-2',
+    slug: 'xun-mech-sticker-2',
+    name: 'Xun Mech Sticker',
+    description: 'High-quality kiss-cut sticker featuring the Xun mech with "XUN" underneath. Available in 3 sizes. Perfect for laptops, water bottles, and notebooks.',
+    price: 350, // $3.50 (5.5" is $4.00)
+    images: [
+      new URL('../assets/merch/sticker2-4x4-default.png', import.meta.url).href,
+    ],
+    colorImages: {
+      'White': [
+        new URL('../assets/merch/sticker2-4x4-default.png', import.meta.url).href,
+        new URL('../assets/merch/sticker2-4x4-front.png', import.meta.url).href,
+        new URL('../assets/merch/sticker2-4x4-lifestyle1.png', import.meta.url).href,
+        new URL('../assets/merch/sticker2-4x4-lifestyle2.png', import.meta.url).href,
+        new URL('../assets/merch/sticker2-4x4-lifestyle3.png', import.meta.url).href,
+      ],
+    },
     category: 'sticker',
     printfulProductId: 0,
     variants: [
-      { id: 'xun-mech-die-cut-small', size: 'Small (3")', color: 'Standard', colorHex: '#ec4899', printfulSyncVariantId: '', inStock: true },
-      { id: 'xun-mech-die-cut-large', size: 'Large (5")', color: 'Standard', colorHex: '#ec4899', printfulSyncVariantId: '', inStock: true },
+      { id: 'sticker2-3x3', size: '3"×3"', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6962c246862c98', inStock: true },
+      { id: 'sticker2-4x4', size: '4"×4"', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6962c246862cf6', inStock: true },
+      { id: 'sticker2-5x5', size: '5.5"×5.5"', color: 'White', colorHex: '#ffffff', printfulSyncVariantId: '6962c246862d43', inStock: true },
     ]
   },
 ];
