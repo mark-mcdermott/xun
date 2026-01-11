@@ -17,6 +17,11 @@ export const TagBrowser: React.FC<TagBrowserProps> = ({ tags, selectedTag, onTag
 
   return (
     <div className="w-full h-full overflow-y-auto pt-1">
+      <div style={{ padding: '0 12px', marginBottom: '8px' }}>
+        <h3 style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Tags
+        </h3>
+      </div>
       {tags.map(tag => (
         <div
           key={tag}

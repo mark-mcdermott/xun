@@ -44,6 +44,8 @@ import { MerchPage } from './components/MerchPage';
 import { ProductPage } from './components/ProductPage';
 import { CartPage } from './components/CartPage';
 import { CheckoutPage } from './components/CheckoutPage';
+import { DocsPage } from './components/DocsPage';
+import { DocsTreeNav } from './components/DocsTreeNav';
 import { useCart } from './stores/cart';
 import { CreateFileDialog } from './components/CreateFileDialog';
 import { VaultSelectionDialog } from './components/VaultSelectionDialog';
@@ -51,7 +53,7 @@ import logoLeftFacing from './assets/pink-and-gray-mech-left.png';
 import logoRightFacing from './assets/pink-and-gray-mech-right.png';
 import { mechSayings } from './data/mechSayings';
 
-type SidebarTab = 'files' | 'tags' | 'daily';
+type SidebarTab = 'files' | 'tags' | 'daily' | 'docs';
 type EditorViewMode = 'markdown' | 'editor' | 'split' | 'preview';
 type Tab =
   | { type: 'file'; path: string; content: string }
@@ -75,6 +77,39 @@ const App: React.FC = () => {
   const [currentProductSlug, setCurrentProductSlug] = useState<string | null>('xun-mech-hoodie');
   const [productInitialSize, setProductInitialSize] = useState<string | undefined>(undefined);
   const [productInitialColor, setProductInitialColor] = useState<string | undefined>(undefined);
+
+  // Docs state
+  const [showDocs, setShowDocs] = useState(false);
+  const [currentDocId, setCurrentDocId] = useState<string>('overview');
+  const [docsHistory, setDocsHistory] = useState<Array<{ docId: string }>>([{ docId: 'overview' }]);
+  const [docsHistoryIndex, setDocsHistoryIndex] = useState(0);
+
+  const canGoBackDocs = docsHistoryIndex > 0;
+  const canGoForwardDocs = docsHistoryIndex < docsHistory.length - 1;
+
+  const navigateDocs = (docId: string) => {
+    const newEntry = { docId };
+    const newHistory = [...docsHistory.slice(0, docsHistoryIndex + 1), newEntry];
+    setDocsHistory(newHistory);
+    setDocsHistoryIndex(newHistory.length - 1);
+    setCurrentDocId(docId);
+  };
+
+  const goBackDocs = () => {
+    if (!canGoBackDocs) return;
+    const newIndex = docsHistoryIndex - 1;
+    const entry = docsHistory[newIndex];
+    setDocsHistoryIndex(newIndex);
+    setCurrentDocId(entry.docId);
+  };
+
+  const goForwardDocs = () => {
+    if (!canGoForwardDocs) return;
+    const newIndex = docsHistoryIndex + 1;
+    const entry = docsHistory[newIndex];
+    setDocsHistoryIndex(newIndex);
+    setCurrentDocId(entry.docId);
+  };
 
   const canGoBackStore = storeHistoryIndex > 0;
   const canGoForwardStore = storeHistoryIndex < storeHistory.length - 1;
@@ -731,6 +766,7 @@ const App: React.FC = () => {
     setActiveTabIndex(index);
     setShowSettings(false);
     setShowMerch(false);
+    setShowDocs(false);
     setStoreView('product');
     setCurrentProductSlug('xun-mech-hoodie');
     if (tab) {
@@ -1478,11 +1514,11 @@ const App: React.FC = () => {
 
         {/* Tab bar in title bar */}
         <div className="flex items-end h-full flex-1" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-          {(openTabs.length > 0 || showSettings || showMerch) && (
+          {(openTabs.length > 0 || showSettings || showMerch || showDocs) && (
             <div className="flex items-end h-full" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
               {/* All Tabs (file, tag, and remote-file) */}
               {openTabs.map((tab, index) => {
-                const isActive = index === activeTabIndex && !showSettings && !showMerch;
+                const isActive = index === activeTabIndex && !showSettings && !showMerch && !showDocs;
                 const tabKey = tab.type === 'file' ? tab.path : tab.type === 'remote-file' ? `remote-${tab.blogId}-${tab.path}` : `tag-${tab.tag}`;
                 const tabLabel = tab.type === 'file' ? getFileName(tab.path) : tab.type === 'remote-file' ? getFileName(tab.path) : tab.tag;
                 return (
@@ -1521,9 +1557,9 @@ const App: React.FC = () => {
                 <div
                   className="flex items-center justify-between cursor-pointer"
                   style={{
-                    backgroundColor: showMerch ? 'var(--tab-inactive-bg)' : 'var(--tab-active-bg)',
+                    backgroundColor: (showMerch || showDocs) ? 'var(--tab-inactive-bg)' : 'var(--tab-active-bg)',
                     border: '1px solid var(--border-primary)',
-                    borderBottom: showMerch ? 'none' : '1px solid var(--tab-active-bg)',
+                    borderBottom: (showMerch || showDocs) ? 'none' : '1px solid var(--tab-active-bg)',
                     marginLeft: openTabs.length === 0 ? (sidebarCollapsed ? '15px' : '12px') : '6px',
                     height: 'calc(100% - 8px)',
                     width: '180px',
@@ -1531,28 +1567,65 @@ const App: React.FC = () => {
                     paddingRight: '6px',
                     borderTopLeftRadius: '8px',
                     borderTopRightRadius: '8px',
-                    marginBottom: showMerch ? '0' : '-1px'
+                    marginBottom: (showMerch || showDocs) ? '0' : '-1px'
                   }}
                   onClick={() => {
                     setShowMerch(false);
+                    setShowDocs(false);
                     setStoreView('product');
                     setCurrentProductSlug('xun-mech-hoodie');
                   }}
                 >
-                  <span className="flex items-center gap-2 hover:opacity-60 transition-all" style={{ fontSize: '13.5px', color: showMerch ? 'var(--tab-inactive-text)' : 'var(--tab-active-text)' }}>
+                  <span className="flex items-center gap-2 hover:opacity-60 transition-all" style={{ fontSize: '13.5px', color: (showMerch || showDocs) ? 'var(--tab-inactive-text)' : 'var(--tab-active-text)' }}>
                     <Settings size={14} strokeWidth={1.5} style={{ marginRight: '5px' }} />
                     Settings
                   </span>
                   <button
                     className="p-0.5 rounded transition-all flex items-center justify-center hover:bg-[var(--tab-close-hover)] hover:opacity-60"
-                    style={{ color: showMerch ? 'var(--tab-inactive-text)' : 'var(--tab-active-text)', backgroundColor: 'transparent' }}
+                    style={{ color: (showMerch || showDocs) ? 'var(--tab-inactive-text)' : 'var(--tab-active-text)', backgroundColor: 'transparent' }}
                     title="Close settings"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowSettings(false);
                       setShowMerch(false);
+                      setShowDocs(false);
                       setStoreView('product');
                       setCurrentProductSlug('xun-mech-hoodie');
+                    }}
+                  >
+                    <X size={16} strokeWidth={2} />
+                  </button>
+                </div>
+              )}
+              {/* Docs Tab */}
+              {showDocs && (
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  style={{
+                    backgroundColor: 'var(--tab-active-bg)',
+                    border: '1px solid var(--border-primary)',
+                    borderBottom: '1px solid var(--tab-active-bg)',
+                    marginLeft: showSettings ? '6px' : (openTabs.length === 0 ? (sidebarCollapsed ? '15px' : '12px') : '6px'),
+                    height: 'calc(100% - 8px)',
+                    width: '180px',
+                    paddingLeft: '10px',
+                    paddingRight: '6px',
+                    borderTopLeftRadius: '8px',
+                    borderTopRightRadius: '8px',
+                    marginBottom: '-1px'
+                  }}
+                >
+                  <span className="flex items-center gap-2 hover:opacity-60 transition-all" style={{ fontSize: '13.5px', color: 'var(--tab-active-text)' }}>
+                    <BookOpen size={14} strokeWidth={1.5} style={{ marginRight: '5px' }} />
+                    Docs
+                  </span>
+                  <button
+                    className="p-0.5 rounded transition-all flex items-center justify-center hover:bg-[var(--tab-close-hover)] hover:opacity-60"
+                    style={{ color: 'var(--tab-active-text)', backgroundColor: 'transparent' }}
+                    title="Close docs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDocs(false);
                     }}
                   >
                     <X size={16} strokeWidth={2} />
@@ -1567,7 +1640,7 @@ const App: React.FC = () => {
                     backgroundColor: 'var(--tab-active-bg)',
                     border: '1px solid var(--border-primary)',
                     borderBottom: '1px solid var(--tab-active-bg)',
-                    marginLeft: showSettings ? '6px' : (openTabs.length === 0 ? (sidebarCollapsed ? '15px' : '12px') : '6px'),
+                    marginLeft: showSettings || showDocs ? '6px' : (openTabs.length === 0 ? (sidebarCollapsed ? '15px' : '12px') : '6px'),
                     height: 'calc(100% - 8px)',
                     width: '180px',
                     paddingLeft: '10px',
@@ -1633,7 +1706,11 @@ const App: React.FC = () => {
             <Code size={20} strokeWidth={1.5} />
           </button>
           <hr style={{ width: '24px', border: 'none', borderTop: '1px solid var(--border-primary)' }} />
-          <button className="p-2 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded transition-all relative" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Merch" onClick={() => { setShowMerch(true); setStoreView('index'); }}>
+          <button className="p-2 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded transition-all" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Documentation" onClick={() => { setShowDocs(true); setShowMerch(false); setSidebarTab('docs'); }}>
+            <BookOpen size={20} strokeWidth={1.5} />
+          </button>
+          <hr style={{ width: '24px', border: 'none', borderTop: '1px solid var(--border-primary)' }} />
+          <button className="p-2 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded transition-all relative" style={{ color: 'var(--sidebar-icon)', backgroundColor: 'transparent' }} title="Merch" onClick={() => { setShowMerch(true); setShowDocs(false); setStoreView('index'); }}>
             <ShoppingCart size={19} strokeWidth={1.5} />
             {!showMerch && sidebarCartCount > 0 && (
               <span
@@ -1722,6 +1799,11 @@ const App: React.FC = () => {
                 expandedPaths={expandedPaths.size > 0 ? expandedPaths : undefined}
                 onFolderToggle={handleFolderToggle}
               />
+            ) : sidebarTab === 'docs' ? (
+              <DocsTreeNav
+                currentDocId={currentDocId}
+                onDocClick={navigateDocs}
+              />
             ) : (
               <TagBrowser
                 tags={tags}
@@ -1765,7 +1847,7 @@ const App: React.FC = () => {
                   transform: 'translateY(-50%)',
                   backgroundColor: '#fff',
                   color: '#000',
-                  padding: '7px 10px 5px 10px',
+                  padding: '6px 10px 6px 10px',
                   fontFamily: '"Press Start 2P", "Courier New", monospace',
                   fontSize: '8px',
                   lineHeight: '1.4',
@@ -1909,7 +1991,15 @@ const App: React.FC = () => {
         {/* Main content area */}
         <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
 
-        {showMerch ? (
+        {showDocs ? (
+          <DocsPage
+            docId={currentDocId}
+            canGoBack={canGoBackDocs}
+            canGoForward={canGoForwardDocs}
+            goBack={goBackDocs}
+            goForward={goForwardDocs}
+          />
+        ) : showMerch ? (
           storeView === 'product' && currentProductSlug ? (
             <ProductPage
               key={`${currentProductSlug}-${productInitialSize}-${productInitialColor}`}

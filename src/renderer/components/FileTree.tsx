@@ -622,6 +622,11 @@ export const FileTree: React.FC<FileTreeComponentProps> = ({
       {/* Remote blog folders at the top */}
       {remoteFolders && remoteFolders.length > 0 && (
         <>
+          <div style={{ padding: '0 12px', marginBottom: '8px' }}>
+            <h3 style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Posts
+            </h3>
+          </div>
           {remoteFolders.map((folder, index) => (
             <FileTreeNode
               key={`remote-${folder.path}-${index}`}
@@ -651,6 +656,13 @@ export const FileTree: React.FC<FileTreeComponentProps> = ({
           <div style={{ height: '8px' }} />
         </>
       )}
+
+      {/* Notes section header */}
+      <div style={{ padding: '0 12px', marginBottom: '8px', marginTop: remoteFolders && remoteFolders.length > 0 ? '0' : '0' }}>
+        <h3 style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Notes
+        </h3>
+      </div>
 
       {/* Skip root folder, render its children directly - no header like Obsidian */}
       {(() => {
