@@ -8,6 +8,6 @@ files:
       - dist/**/*
 mac:
   category: public.app-category.productivity
-  icon: build/icon.icns
+  icon: resources/icon.icns
   target: dmg
 electronVersion: 39.2.5
