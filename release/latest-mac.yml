@@ -1,8 +1,8 @@
 version: 0.1.0
 files:
   - url: Xun-0.1.0-arm64.dmg
-    sha512: pIQikiR/+YfKzYOUOwhRgLhqRpav9HF6bwZXxVmR1fWsh2QJfw3EptaUrW9L93T8fhJvaPRPnaIHldRBiklcbg==
-    size: 202834446
+    sha512: emDJpBek9Wpl4pR6nZoFx9zRCGrCRxv4Z/4T9S9d8I0k2wTdWCw+TeR/AgdPd5/R+KleuNNthePEX4d3ywExBA==
+    size: 202834434
 path: Xun-0.1.0-arm64.dmg
-sha512: pIQikiR/+YfKzYOUOwhRgLhqRpav9HF6bwZXxVmR1fWsh2QJfw3EptaUrW9L93T8fhJvaPRPnaIHldRBiklcbg==
-releaseDate: '2026-01-14T23:33:49.530Z'
+sha512: emDJpBek9Wpl4pR6nZoFx9zRCGrCRxv4Z/4T9S9d8I0k2wTdWCw+TeR/AgdPd5/R+KleuNNthePEX4d3ywExBA==
+releaseDate: '2026-01-14T23:58:23.475Z'

@@ -32,7 +32,10 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "resources/icon.icns",
-      "target": "dmg"
+      "target": "dmg",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     }
   },
   "keywords": [
