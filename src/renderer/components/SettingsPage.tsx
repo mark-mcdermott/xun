@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Trash2, Edit2, Github, Cloud, Power, Coffee, Bug } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Edit2, Github, Cloud, Power, Coffee, Bug, RefreshCw } from 'lucide-react';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -49,6 +49,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
   const [activeVaultId, setActiveVaultId] = useState<string | null>(null);
   const [deleteVaultConfirm, setDeleteVaultConfirm] = useState<VaultEntry | null>(null);
   const [deleteBlogConfirm, setDeleteBlogConfirm] = useState<BlogTarget | null>(null);
+  const [syncingBlogId, setSyncingBlogId] = useState<string | null>(null);
 
   useEffect(() => {
     loadBlogs();
@@ -182,6 +183,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
       }
     } catch (error) {
       console.error('Failed to delete blog:', error);
+    }
+  };
+
+  const handleSyncBlog = async (blogId: string) => {
+    setSyncingBlogId(blogId);
+    try {
+      await window.electronAPI.cms.refreshBlog(blogId);
+    } catch (error) {
+      console.error('Failed to sync blog:', error);
+    } finally {
+      setSyncingBlogId(null);
     }
   };
 
@@ -690,6 +702,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
                     )}
                   </div>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleSyncBlog(blog.id)}
+                      disabled={syncingBlogId === blog.id}
+                      className="p-2 rounded-lg transition-all hover:bg-gray-100 hover:opacity-60"
+                      style={{ color: 'var(--text-icon)', backgroundColor: 'transparent' }}
+                      title="Sync posts from GitHub"
+                    >
+                      <RefreshCw size={16} strokeWidth={1.5} className={syncingBlogId === blog.id ? 'animate-spin' : ''} />
+                    </button>
                     <button
                       onClick={() => handleEditBlog(blog)}
                       className="p-2 rounded-lg transition-all hover:bg-gray-100 hover:opacity-60"

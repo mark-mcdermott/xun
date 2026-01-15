@@ -48,8 +48,8 @@ export function registerPublishHandlers(): void {
         initializePublishManagers(vaultPath);
       }
 
-      const blogs = await configManager!.load();
-      return { success: true, blogs: blogs.blogs };
+      const blogs = await configManager!.getBlogs();
+      return { success: true, blogs };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
