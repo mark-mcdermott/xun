@@ -138,11 +138,6 @@ export const mechSayings = [
   'laugh at yourself',
   'assume good will',
 
-  // Hakim Bey / T.A.Z.
-  'poetic terrorism',
-  'ontological anarchy',
-  'chaos never died',
-
   // Nietzsche
   'become who you are',
   'the abyss gazes back',
