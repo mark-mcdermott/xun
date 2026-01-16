@@ -48,3 +48,6 @@ tests/e2e/screenshots/
 .cache/
 temp/
 tmp/
+
+# LLM config
+.llm/
