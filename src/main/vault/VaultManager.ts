@@ -306,10 +306,10 @@ export class VaultManager {
   }
 
   /**
-   * Get local date as YYYY-MM-DD string
+   * Get local date as YY-MM-DD string
    */
   private getLocalDateString(date: Date = new Date()): string {
-    const year = date.getFullYear();
+    const year = String(date.getFullYear()).slice(-2); // Last 2 digits
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
@@ -345,7 +345,7 @@ export class VaultManager {
   }
 
   /**
-   * Get daily note for a specific date (YYYY-MM-DD)
+   * Get daily note for a specific date (YY-MM-DD or YYYY-MM-DD)
    */
   async getDailyNote(date: string): Promise<{ path: string; content: string; isNew: boolean }> {
     const notePath = join(DEFAULT_VAULT_STRUCTURE.dailyNotes, `${date}.md`);
@@ -379,8 +379,8 @@ export class VaultManager {
       const files = await fs.readdir(dailyNotesDir);
 
       for (const file of files) {
-        // Match YYYY-MM-DD.md pattern
-        const match = file.match(/^(\d{4}-\d{2}-\d{2})\.md$/);
+        // Match YY-MM-DD.md or YYYY-MM-DD.md pattern (for backwards compatibility)
+        const match = file.match(/^(\d{2,4}-\d{2}-\d{2})\.md$/);
         if (match) {
           dates.push(match[1]);
         }

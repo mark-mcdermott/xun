@@ -49,6 +49,7 @@ import { DocsTreeNav } from './components/DocsTreeNav';
 import { useCart } from './stores/cart';
 import { CreateFileDialog } from './components/CreateFileDialog';
 import { VaultSelectionDialog } from './components/VaultSelectionDialog';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import logoLeftFacing from './assets/pink-and-gray-mech-left.png';
 import logoRightFacing from './assets/pink-and-gray-mech-right.png';
 import { mechSayings } from './data/mechSayings';
@@ -63,7 +64,7 @@ type Tab =
 const App: React.FC = () => {
   const { vaultPath, fileTree, loading, error, readFile, writeFile, createFile, createFolder, deleteFile, moveFile, renameFile, getTodayNote, getDailyNote, getDailyNoteDates, refreshFileTree } = useVault();
   const { tags, loading: tagsLoading, getTagContent, deleteTag, refreshTags } = useTags();
-  const { remoteFolders, getPostContent, saveDraft, publishPost, hasDraft, refresh: refreshRemotePosts, refreshBlog, renameFile: renameRemoteFile } = useRemotePosts();
+  const { remoteFolders, getPostContent, saveDraft, publishPost, hasDraft, refresh: refreshRemotePosts, refreshBlog, renameFile: renameRemoteFile, deleteFile: deleteRemoteFile } = useRemotePosts();
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('files');
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
@@ -187,6 +188,15 @@ const App: React.FC = () => {
   const [cmsPublishSteps, setCmsPublishSteps] = useState<Array<{ name: string; status: 'pending' | 'in_progress' | 'completed' | 'failed'; message?: string }>>([]);
   const [cmsPublishError, setCmsPublishError] = useState<string | null>(null);
   const cmsPublishTabInfoRef = useRef<{ tabIndex: number; blogId: string; path: string } | null>(null);
+
+  // Remote file delete confirmation state
+  const [deleteRemoteConfirm, setDeleteRemoteConfirm] = useState<{
+    isOpen: boolean;
+    blogId: string;
+    path: string;
+    sha: string;
+    fileName: string;
+  } | null>(null);
 
   // Navigation history for back/forward
   type HistoryEntry = { type: 'file'; path: string } | { type: 'tag'; tag: string } | { type: 'settings' };
@@ -600,6 +610,10 @@ const App: React.FC = () => {
             });
             blogBlockPublishResolveRef.current = null;
           }
+          // Refresh remote posts to show the newly published post
+          if (data.status === 'completed') {
+            refreshRemotePosts();
+          }
         }
       });
     };
@@ -609,7 +623,7 @@ const App: React.FC = () => {
     return () => {
       window.electronAPI.publish.unsubscribe(blogBlockPublishJobId);
     };
-  }, [blogBlockPublishJobId]);
+  }, [blogBlockPublishJobId, refreshRemotePosts]);
 
   // Subscribe to CMS publish job progress
   useEffect(() => {
@@ -1225,6 +1239,53 @@ const App: React.FC = () => {
     }
   };
 
+  // Show confirmation dialog for remote file deletion
+  const handleDeleteRemoteRequest = (blogId: string, path: string, sha: string, fileName: string) => {
+    setDeleteRemoteConfirm({
+      isOpen: true,
+      blogId,
+      path,
+      sha,
+      fileName
+    });
+  };
+
+  // Actually perform the remote file deletion
+  const handleConfirmDeleteRemote = async () => {
+    if (!deleteRemoteConfirm) return;
+
+    const { blogId, path, sha } = deleteRemoteConfirm;
+    try {
+      await deleteRemoteFile(blogId, path, sha);
+
+      // Close the tab if this file was open
+      const tabIndex = openTabs.findIndex(
+        tab => tab.type === 'remote-file' && tab.blogId === blogId && tab.path === path
+      );
+      if (tabIndex >= 0) {
+        setOpenTabs(prev => prev.filter((_, i) => i !== tabIndex));
+        if (activeTabIndex === tabIndex) {
+          setActiveTabIndex(Math.max(0, tabIndex - 1));
+        } else if (activeTabIndex > tabIndex) {
+          setActiveTabIndex(activeTabIndex - 1);
+        }
+        if (openTabs.length === 1) {
+          setActiveTabIndex(-1);
+        }
+      }
+
+      // The cache update listener will automatically refresh the remote posts
+    } catch (err: any) {
+      console.error('Failed to delete remote file:', err);
+    } finally {
+      setDeleteRemoteConfirm(null);
+    }
+  };
+
+  const handleCancelDeleteRemote = () => {
+    setDeleteRemoteConfirm(null);
+  };
+
   const handleQuickCreateFile = async () => {
     // Generate unique untitled filename
     let name = 'untitled.md';
@@ -1494,6 +1555,18 @@ const App: React.FC = () => {
         type={createDialogType}
         onClose={() => setCreateDialogOpen(false)}
         onCreate={handleCreate}
+      />
+
+      {/* Delete Remote File Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteRemoteConfirm?.isOpen ?? false}
+        title="Delete Post"
+        message={`Are you sure you want to delete "${deleteRemoteConfirm?.fileName?.replace('.md', '') ?? ''}"? This will permanently remove it from the remote repository and cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleConfirmDeleteRemote}
+        onCancel={handleCancelDeleteRemote}
       />
 
       {/* Top bar - spans full width */}
@@ -1766,6 +1839,7 @@ const App: React.FC = () => {
                 onRemoteFileClick={handleRemoteFileClick}
                 onPublishRemote={handlePublishRemote}
                 onDelete={handleDeleteFile}
+                onDeleteRemote={handleDeleteRemoteRequest}
                 onMoveFile={handleMoveFile}
                 onRename={handleRenameFile}
                 onRenameRemote={handleRenameRemoteFile}
@@ -1807,12 +1881,12 @@ const App: React.FC = () => {
           </div>
 
           {/* Mech above vault selector */}
-          <div style={{ padding: '37px 16px 0 16px', position: 'relative' }}>
+          <div style={{ padding: '37px 16px 0 16px', position: 'relative', zIndex: 1 }}>
             <img
               src={logoRightFacing}
               alt="Xun"
               onClick={handleMechClick}
-              style={{ height: '42px', width: 'auto', cursor: 'pointer', position: 'relative', zIndex: 51, top: '4px' }}
+              style={{ height: '42px', width: 'auto', cursor: 'pointer', position: 'relative', top: '4px' }}
             />
             {/* Mech speech bubble */}
             <style>{`
@@ -1886,7 +1960,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Bottom vault selector and settings - all on one row */}
-          <div className="px-2 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-primary)', paddingTop: '10px', paddingBottom: '10px' }}>
+          <div className="px-2 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-primary)', paddingTop: '10px', paddingBottom: '10px', position: 'relative', zIndex: 10 }}>
             <div ref={vaultMenuRef} className="relative">
               <button
                 className="flex items-center px-2 py-1.5 hover:bg-[var(--sidebar-hover)] hover:opacity-60 rounded text-xs transition-all"
@@ -1902,8 +1976,9 @@ const App: React.FC = () => {
               {/* Vault switcher dropdown */}
               {vaultMenuOpen && allVaults.length > 0 && (
                 <div
-                  className="absolute left-0 z-50"
+                  className="absolute left-0"
                   style={{
+                    zIndex: 100,
                     bottom: '100%',
                     marginBottom: '4px',
                     backgroundColor: 'var(--dialog-bg)',
@@ -2047,7 +2122,21 @@ const App: React.FC = () => {
             />
           )
         ) : activePanel === 'settings' && showSettings ? (
-          <SettingsPage vaultPath={vaultPath} onVaultSwitch={handleVaultSwitchFromSettings} onBlogDeleted={refreshRemotePosts} onOpenMerch={() => { setShowMerch(true); setStoreView('index'); setActivePanel('merch'); }} />
+          <SettingsPage
+            vaultPath={vaultPath}
+            onVaultSwitch={handleVaultSwitchFromSettings}
+            onBlogDeleted={refreshRemotePosts}
+            onBlogSaved={async () => {
+              // Refresh the blogs list so the editor can find the new blog
+              const blogsResult = await window.electronAPI.publish.getBlogs();
+              if (blogsResult.success && blogsResult.blogs) {
+                setBlogs(blogsResult.blogs);
+              }
+              // Also refresh remote posts
+              await refreshRemotePosts();
+            }}
+            onOpenMerch={() => { setShowMerch(true); setStoreView('index'); setActivePanel('merch'); }}
+          />
         ) : activeFileTab ? (
           <>
             {/* Navigation bar with breadcrumb */}

@@ -8,6 +8,7 @@ interface FileTreeNodeProps {
   onRemoteFileClick?: (blogId: string, path: string) => void;
   onPublishRemote?: (blogId: string, path: string) => void;
   onDelete?: (path: string, type: 'file' | 'folder') => void;
+  onDeleteRemote?: (blogId: string, path: string, sha: string, fileName: string) => void;
   onMoveFile?: (sourcePath: string, destFolder: string) => void;
   onCreateInFolder?: (folderPath: string, type: 'file' | 'folder') => void;
   level?: number;
@@ -33,6 +34,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
   onRemoteFileClick,
   onPublishRemote,
   onDelete,
+  onDeleteRemote,
   onMoveFile,
   onCreateInFolder,
   level = 0,
@@ -155,7 +157,13 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
             onStartRename?.(node.path);
             break;
           case 'delete':
-            onDelete?.(node.path, 'file');
+            if (isRemote && node.remoteMeta) {
+              // For remote files, call onDeleteRemote with the file info
+              const actualPath = node.path.replace(`remote:${node.remoteMeta.blogId}:`, '');
+              onDeleteRemote?.(node.remoteMeta.blogId, actualPath, node.remoteMeta.sha, node.name);
+            } else {
+              onDelete?.(node.path, 'file');
+            }
             break;
         }
       }
@@ -296,6 +304,7 @@ const FileTreeNode: React.FC<FileTreeNodeProps> = ({
                   onRemoteFileClick={onRemoteFileClick}
                   onPublishRemote={onPublishRemote}
                   onDelete={onDelete}
+                  onDeleteRemote={onDeleteRemote}
                   onMoveFile={onMoveFile}
                   onCreateInFolder={onCreateInFolder}
                   level={level + 1}
@@ -519,6 +528,7 @@ interface FileTreeComponentProps {
   onRemoteFileClick?: (blogId: string, path: string) => void;
   onPublishRemote?: (blogId: string, path: string) => void;
   onDelete?: (path: string, type: 'file' | 'folder') => void;
+  onDeleteRemote?: (blogId: string, path: string, sha: string, fileName: string) => void;
   onMoveFile?: (sourcePath: string, destFolder: string) => void;
   onRename?: (oldPath: string, newName: string) => Promise<string | null>;
   onRenameRemote?: (blogId: string, oldPath: string, newName: string, sha: string) => Promise<void>;
@@ -541,6 +551,7 @@ export const FileTree: React.FC<FileTreeComponentProps> = ({
   onRemoteFileClick,
   onPublishRemote,
   onDelete,
+  onDeleteRemote,
   onMoveFile,
   onRename,
   onRenameRemote,
@@ -635,6 +646,7 @@ export const FileTree: React.FC<FileTreeComponentProps> = ({
               onRemoteFileClick={onRemoteFileClick}
               onPublishRemote={onPublishRemote}
               onDelete={onDelete}
+              onDeleteRemote={onDeleteRemote}
               onMoveFile={onMoveFile}
               onCreateInFolder={onCreateInFolder}
               level={0}
@@ -677,6 +689,7 @@ export const FileTree: React.FC<FileTreeComponentProps> = ({
               onRemoteFileClick={onRemoteFileClick}
               onPublishRemote={onPublishRemote}
               onDelete={onDelete}
+              onDeleteRemote={onDeleteRemote}
               onMoveFile={onMoveFile}
               onCreateInFolder={onCreateInFolder}
               level={0}

@@ -118,6 +118,8 @@ export interface ElectronAPI {
     getBlog: (blogId: string) => Promise<VaultResponse<{ blog: any }>>;
     saveBlog: (blog: any) => Promise<VaultResponse>;
     deleteBlog: (blogId: string) => Promise<VaultResponse<{ deleted: boolean }>>;
+    testConnection: (github: { repo: string; branch: string; token: string }, contentPath?: string) => Promise<VaultResponse>;
+    testCloudflare: (cloudflare: { accountId: string; projectName: string; token: string }) => Promise<VaultResponse<{ projectUrl?: string }>>;
     toBlog: (blogId: string, tag: string) => Promise<VaultResponse<{ jobId: string }>>;
     toBlogDirect: (blogId: string, content: string) => Promise<VaultResponse<{ jobId: string }>>;
     toCmsFile: (blogId: string, filePath: string, content: string, sha: string) => Promise<VaultResponse<{ jobId: string }>>;
@@ -143,6 +145,7 @@ export interface ElectronAPI {
     publishPost: (blogId: string, path: string, content: string, sha: string) => Promise<VaultResponse<{ newSha: string }>>;
     getModifiedPaths: (blogId: string) => Promise<VaultResponse<{ paths: string[] }>>;
     renameFile: (blogId: string, oldPath: string, newName: string, sha: string) => Promise<VaultResponse<{ newPath: string; newSha: string }>>;
+    deleteFile: (blogId: string, path: string, sha: string) => Promise<VaultResponse>;
     onCacheUpdated: (callback: () => void) => void;
     removeCacheListener: () => void;
   };
@@ -220,6 +223,10 @@ const api: ElectronAPI = {
     getBlog: (blogId: string) => ipcRenderer.invoke('publish:get-blog', blogId),
     saveBlog: (blog: any) => ipcRenderer.invoke('publish:save-blog', blog),
     deleteBlog: (blogId: string) => ipcRenderer.invoke('publish:delete-blog', blogId),
+    testConnection: (github: { repo: string; branch: string; token: string }, contentPath?: string) =>
+      ipcRenderer.invoke('publish:test-connection', github, contentPath),
+    testCloudflare: (cloudflare: { accountId: string; projectName: string; token: string }) =>
+      ipcRenderer.invoke('publish:test-cloudflare', cloudflare),
     toBlog: (blogId: string, tag: string) =>
       ipcRenderer.invoke('publish:to-blog', blogId, tag),
     toBlogDirect: (blogId: string, content: string) =>
@@ -260,6 +267,8 @@ const api: ElectronAPI = {
       ipcRenderer.invoke('cms:get-modified-paths', blogId),
     renameFile: (blogId: string, oldPath: string, newName: string, sha: string) =>
       ipcRenderer.invoke('cms:rename-file', blogId, oldPath, newName, sha),
+    deleteFile: (blogId: string, path: string, sha: string) =>
+      ipcRenderer.invoke('cms:delete-file', blogId, path, sha),
     onCacheUpdated: (callback: () => void) => {
       ipcRenderer.on('cms:cache-updated', () => callback());
     },

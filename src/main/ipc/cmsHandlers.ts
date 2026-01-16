@@ -241,6 +241,47 @@ export function registerCmsHandlers(): void {
     }
   });
 
+  // Delete a remote file
+  ipcMain.handle('cms:delete-file', async (
+    _event,
+    blogId: string,
+    path: string,
+    sha: string
+  ) => {
+    try {
+      if (!configManager || !remotePostCache || !draftManager) {
+        return { success: false, error: 'CMS not initialized' };
+      }
+
+      // Get blog config
+      const config = await configManager.load();
+      const blog = config.blogs?.find((b: BlogTarget) => b.id === blogId);
+      if (!blog) {
+        return { success: false, error: 'Blog not found' };
+      }
+
+      // Create GitHub client and delete file
+      const client = new GitHubClient(blog.github.token);
+      await client.deleteFile(
+        blog.github.repo,
+        path,
+        `Delete ${path.split('/').pop()}`,
+        blog.github.branch,
+        sha
+      );
+
+      // Clear any draft for this path
+      draftManager.deleteDraft(blogId, path);
+
+      // Refresh the blog's cache to pick up the deletion
+      await remotePostCache.refreshBlog(blogId);
+
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
   // Rename a remote file
   ipcMain.handle('cms:rename-file', async (
     _event,

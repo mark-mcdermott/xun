@@ -6,6 +6,7 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary';
   className?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -13,7 +14,8 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
   className = '',
-  style = {}
+  style = {},
+  disabled = false
 }) => {
   const baseStyles: React.CSSProperties = {
     padding: '11px 20px',
@@ -22,6 +24,8 @@ export const Button: React.FC<ButtonProps> = ({
     borderRadius: '8px',
     boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)',
     border: '1px solid var(--btn-secondary-border)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.6 : 1,
   };
 
   const variantStyles: Record<string, React.CSSProperties> = {
@@ -41,11 +45,12 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`flex items-center transition-colors duration-150 ${className}`}
       style={{ ...baseStyles, ...variantStyles[variant], ...style }}
-      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = hoverBg}
-      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = defaultBg}
+      onMouseEnter={(e) => !disabled && (e.currentTarget.style.backgroundColor = hoverBg)}
+      onMouseLeave={(e) => !disabled && (e.currentTarget.style.backgroundColor = defaultBg)}
     >
       {children}
     </button>

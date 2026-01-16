@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Trash2, Edit2, Github, Cloud, Power, Coffee, Bug, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Edit2, Github, Cloud, Power, Coffee, Bug, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from './Button';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useToast } from './Toast';
 
 interface VaultEntry {
   id: string;
@@ -36,13 +37,19 @@ interface SettingsPageProps {
   vaultPath?: string | null;
   onVaultSwitch?: () => Promise<void>;
   onBlogDeleted?: () => Promise<void>;
+  onBlogSaved?: () => Promise<void>;
   onOpenMerch?: () => void;
 }
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlogDeleted, onOpenMerch }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlogDeleted, onBlogSaved, onOpenMerch }) => {
   const [blogs, setBlogs] = useState<BlogTarget[]>([]);
   const [editingBlog, setEditingBlog] = useState<BlogTarget | null>(null);
   const [loading, setLoading] = useState(true);
+  const [testingGitHub, setTestingGitHub] = useState(false);
+  const [testingCloudflare, setTestingCloudflare] = useState(false);
+
+  // Toast notifications
+  const { showToast, updateToast } = useToast();
 
   // Multi-vault state
   const [vaults, setVaults] = useState<VaultEntry[]>([]);
@@ -158,6 +165,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
       if (result.success) {
         await loadBlogs();
         setEditingBlog(null);
+        // Notify parent to refresh blogs list
+        if (onBlogSaved) {
+          await onBlogSaved();
+        }
       }
     } catch (error) {
       console.error('Failed to save blog:', error);
@@ -187,15 +198,153 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
   };
 
   const handleSyncBlog = async (blogId: string) => {
+    // Prevent double-clicks
+    if (syncingBlogId) return;
+
     setSyncingBlogId(blogId);
+    const blog = blogs.find(b => b.id === blogId);
+    const blogName = blog?.name || 'Blog';
+
+    let toastId: string | null = null;
     try {
-      await window.electronAPI.cms.refreshBlog(blogId);
-    } catch (error) {
-      console.error('Failed to sync blog:', error);
+      toastId = showToast({
+        type: 'loading',
+        title: 'Syncing...',
+        message: `Fetching posts from ${blogName}`
+      });
+
+      const result = await window.electronAPI.cms.refreshBlog(blogId);
+      if (result.success) {
+        updateToast(toastId, {
+          type: 'success',
+          title: 'Sync Complete',
+          message: `Successfully synced posts from ${blogName}`
+        });
+      } else {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'Sync Failed',
+          message: result.error || 'Failed to sync posts'
+        });
+      }
+    } catch (error: any) {
+      if (toastId) {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'Sync Failed',
+          message: error.message || 'An unexpected error occurred'
+        });
+      } else {
+        // Fallback if toast creation failed
+        showToast({
+          type: 'error',
+          title: 'Sync Failed',
+          message: error.message || 'An unexpected error occurred'
+        });
+      }
     } finally {
       setSyncingBlogId(null);
     }
   };
+
+  const handleTestGitHub = async () => {
+    if (!editingBlog) return;
+
+    setTestingGitHub(true);
+    const toastId = showToast({
+      type: 'loading',
+      title: 'Testing GitHub...',
+      message: 'Verifying credentials and content path'
+    });
+
+    try {
+      const result = await window.electronAPI.publish.testConnection(
+        {
+          repo: editingBlog.github.repo,
+          branch: editingBlog.github.branch,
+          token: editingBlog.github.token
+        },
+        editingBlog.content.path // Also verify content path exists
+      );
+
+      if (result.success) {
+        updateToast(toastId, {
+          type: 'success',
+          title: 'GitHub Connected',
+          message: `Verified ${editingBlog.github.repo} and content path`
+        });
+      } else {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'GitHub Test Failed',
+          message: result.error || 'Could not connect to GitHub'
+        });
+      }
+    } catch (error: any) {
+      updateToast(toastId, {
+        type: 'error',
+        title: 'GitHub Test Failed',
+        message: error.message || 'An unexpected error occurred'
+      });
+    } finally {
+      setTestingGitHub(false);
+    }
+  };
+
+  const handleTestCloudflare = async () => {
+    if (!editingBlog?.cloudflare) return;
+
+    setTestingCloudflare(true);
+    const toastId = showToast({
+      type: 'loading',
+      title: 'Testing Cloudflare...',
+      message: 'Verifying credentials and project'
+    });
+
+    try {
+      const result = await window.electronAPI.publish.testCloudflare({
+        accountId: editingBlog.cloudflare.accountId,
+        projectName: editingBlog.cloudflare.projectName,
+        token: editingBlog.cloudflare.token
+      });
+
+      if (result.success) {
+        updateToast(toastId, {
+          type: 'success',
+          title: 'Cloudflare Connected',
+          message: result.projectUrl
+            ? `Project found: ${result.projectUrl}`
+            : `Project "${editingBlog.cloudflare.projectName}" verified`
+        });
+      } else {
+        updateToast(toastId, {
+          type: 'error',
+          title: 'Cloudflare Test Failed',
+          message: result.error || 'Could not connect to Cloudflare'
+        });
+      }
+    } catch (error: any) {
+      updateToast(toastId, {
+        type: 'error',
+        title: 'Cloudflare Test Failed',
+        message: error.message || 'An unexpected error occurred'
+      });
+    } finally {
+      setTestingCloudflare(false);
+    }
+  };
+
+  // Check if GitHub fields are filled for Test GitHub Connection button
+  const canTestGitHub = editingBlog &&
+    editingBlog.github.repo.trim() &&
+    editingBlog.github.branch.trim() &&
+    editingBlog.github.token.trim();
+
+  // Check if Cloudflare fields are filled for Test Cloudflare Connection button
+  const canTestCloudflare = editingBlog?.cloudflare &&
+    editingBlog.cloudflare.accountId.trim() &&
+    editingBlog.cloudflare.projectName.trim() &&
+    editingBlog.cloudflare.token.trim();
 
   const handleCancel = () => {
     setEditingBlog(null);
@@ -380,6 +529,50 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
                     placeholder="ghp_..."
                   />
                 </div>
+
+                <div>
+                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
+                    Content Path <span style={{ color: 'var(--status-error)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editingBlog.content.path}
+                    onChange={e => setEditingBlog({
+                      ...editingBlog,
+                      content: { ...editingBlog.content, path: e.target.value }
+                    })}
+                    className="w-full"
+                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
+                    placeholder="src/content/posts/"
+                  />
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Path in your GitHub repo where posts are stored
+                  </p>
+                </div>
+
+                {/* Test GitHub Connection Button */}
+                {canTestGitHub && (
+                  <div style={{ marginTop: '24px' }}>
+                    <Button
+                      onClick={handleTestGitHub}
+                      variant="secondary"
+                      disabled={testingGitHub}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      {testingGitHub ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Testing...
+                        </>
+                      ) : (
+                        <>
+                          <Github size={16} strokeWidth={1.5} />
+                          Test GitHub Connection
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -472,26 +665,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
               <div className="space-y-4">
                 <div>
                   <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
-                    Backend Content Path <span style={{ color: 'var(--status-error)' }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={editingBlog.content.path}
-                    onChange={e => setEditingBlog({
-                      ...editingBlog,
-                      content: { ...editingBlog.content, path: e.target.value }
-                    })}
-                    className="w-full"
-                    style={{ padding: '10px 14px', fontSize: '14.5px', border: '1px solid var(--input-border)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', borderRadius: '8px', boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.06)', marginBottom: '0' }}
-                    placeholder="src/content/posts/"
-                  />
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Path in your GitHub repo where posts are stored
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '20px', marginBottom: '14px' }}>
                     Live Post Path
                   </label>
                   <input
@@ -534,6 +707,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onVaultSwitch, onBlo
 
             {/* Action buttons */}
             <div className="flex justify-end gap-3 pt-6">
+              {canTestCloudflare && (
+                <Button
+                  onClick={handleTestCloudflare}
+                  variant="secondary"
+                  disabled={testingCloudflare}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: 'auto' }}
+                >
+                  {testingCloudflare ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      <Cloud size={16} strokeWidth={1.5} />
+                      Test Cloudflare Connection
+                    </>
+                  )}
+                </Button>
+              )}
               <Button onClick={handleCancel} variant="secondary" style={{ marginRight: '8px' }}>
                 Cancel
               </Button>

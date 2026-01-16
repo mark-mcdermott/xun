@@ -15,6 +15,7 @@ interface UseRemotePostsReturn {
   publishPost: (blogId: string, path: string, content: string, sha: string) => Promise<string>;
   getModifiedPaths: (blogId: string) => Promise<string[]>;
   renameFile: (blogId: string, oldPath: string, newName: string, sha: string) => Promise<{ jobId: string }>;
+  deleteFile: (blogId: string, path: string, sha: string) => Promise<void>;
 }
 
 export const useRemotePosts = (): UseRemotePostsReturn => {
@@ -134,6 +135,14 @@ export const useRemotePosts = (): UseRemotePostsReturn => {
     return { jobId: result.jobId };
   }, []);
 
+  // Delete a remote file
+  const deleteFile = useCallback(async (blogId: string, path: string, sha: string) => {
+    const result = await window.electronAPI.cms.deleteFile(blogId, path, sha);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete file');
+    }
+  }, []);
+
   // Load on mount and listen for cache updates
   useEffect(() => {
     refresh();
@@ -161,6 +170,7 @@ export const useRemotePosts = (): UseRemotePostsReturn => {
     hasDraft,
     publishPost,
     getModifiedPaths,
-    renameFile
+    renameFile,
+    deleteFile
   };
 };
